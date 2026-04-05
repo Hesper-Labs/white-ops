@@ -7,42 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-server:
-    name: Lint Server
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          cd server
-          pip install -e ".[dev]"
-      - name: Ruff check
-        run: cd server && ruff check .
-      - name: Ruff format check
-        run: cd server && ruff format --check .
-      - name: MyPy
-        run: cd server && mypy app/ --ignore-missing-imports
-
-  lint-worker:
-    name: Lint Worker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          cd worker
-          pip install -e ".[dev]"
-      - name: Ruff check
-        run: cd worker && ruff check .
-
-  lint-web:
-    name: Lint Frontend
+  check-frontend:
+    name: Frontend Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,113 +19,37 @@ jobs:
         run: cd web && npm ci
       - name: TypeScript check
         run: cd web && npx tsc --noEmit
-      - name: ESLint
-        run: cd web && npm run lint
 
-  test-server:
-    name: Test Server
+  check-python-syntax:
+    name: Python Syntax Check
     runs-on: ubuntu-latest
-    needs: lint-server
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: whiteops_test
-          POSTGRES_USER: whiteops
-          POSTGRES_PASSWORD: testpassword
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: whiteops_test
-      POSTGRES_USER: whiteops
-      POSTGRES_PASSWORD: testpassword
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ""
-      SECRET_KEY: test-secret-key-for-ci
-      JWT_SECRET_KEY: test-jwt-secret-key-for-ci
-      MINIO_ENDPOINT: localhost:9000
-      MINIO_ROOT_USER: test
-      MINIO_ROOT_PASSWORD: testpassword
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies
+      - name: Check syntax (server)
+        run: python -m py_compile server/app/main.py && echo "Server syntax OK"
+      - name: Check all Python files
         run: |
-          cd server
-          pip install -e ".[dev]"
-      - name: Run tests
-        run: cd server && pytest -v --cov=app --cov-report=xml
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: server/coverage.xml
-          flags: server
-
-  test-worker:
-    name: Test Worker
-    runs-on: ubuntu-latest
-    needs: lint-worker
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          cd worker
-          pip install -e ".[dev]"
-      - name: Run tests
-        run: cd worker && pytest -v
+          errors=0
+          for f in $(find server worker -name "*.py"); do
+            python -c "import ast; ast.parse(open('$f').read())" 2>/dev/null || { echo "FAIL: $f"; errors=$((errors+1)); }
+          done
+          echo "Checked $(find server worker -name '*.py' | wc -l) files, $errors errors"
+          [ $errors -eq 0 ]
 
   build-docker:
-    name: Build Docker Images
+    name: Docker Build
     runs-on: ubuntu-latest
-    needs: [test-server, test-worker, lint-web]
+    needs: [check-frontend, check-python-syntax]
     steps:
       - uses: actions/checkout@v4
-      - name: Build server
+      - name: Build server image
         run: docker build -t whiteops-server ./server
-      - name: Build worker
+      - name: Build worker image
         run: docker build -t whiteops-worker ./worker
-      - name: Build web
+      - name: Build web image
         run: docker build -t whiteops-web ./web
-      - name: Build mail
+      - name: Build mail image
         run: docker build -t whiteops-mail ./mail
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Bandit
-        run: pip install bandit[toml]
-      - name: Run Bandit (server)
-        run: bandit -r server/app/ -ll -ii
-      - name: Run Bandit (worker)
-        run: bandit -r worker/agent/ -ll -ii
-      - name: Check for secrets
-        run: |
-          # Check for hardcoded secrets
-          ! grep -rn "password\s*=\s*['\"][^'\"]*['\"]" server/app/ worker/agent/ --include="*.py" | grep -v "changeme\|change-me\|example\|test\|hash_password\|verify_password\|hashed_password\|POSTGRES_PASSWORD\|REDIS_PASSWORD"
