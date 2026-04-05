@@ -47,22 +47,44 @@ Deploy AI agents on multiple PCs that handle everything a white-collar worker do
 ## Screenshots
 
 ### Dashboard
-Real-time overview with KPI cards, Recharts bar/pie charts, task distribution, and system health monitoring.
+KPI cards, Recharts charts, task distribution, and system health at a glance.
+
+![Dashboard](assets/screenshots/dashboard.png)
 
 ### Agent Management
-Table view with status indicators, LLM info, completion stats. Click for detailed 5-tab view (Overview, Configuration, Tools, Logs, Performance).
+Table view with status indicators, LLM info, completion stats. Click for detailed 5-tab view.
+
+![Agents](assets/screenshots/agents.png)
 
 ### Task Board
-Filter by status, assign to agents, set priorities. Each task has detailed view with results, tool call logs, and comments.
+Filter by status, assign to agents, set priorities. Detailed view with results and tool call logs.
+
+![Tasks](assets/screenshots/tasks.png)
+
+### Analytics
+Success rates, avg completion times, agent performance comparison, worker utilization.
+
+![Analytics](assets/screenshots/analytics.png)
 
 ### Workflow Builder
-Visual step editor with Task, If/Else, Parallel, Wait, and Notify step types. Assign agents per step.
+Visual step editor with Task, If/Else, Parallel, Wait, and Notify step types.
+
+![Workflow Builder](assets/screenshots/workflow-builder.png)
 
 ### Agent Presets
-12 pre-configured agent profiles (Financial Analyst, Research Specialist, Content Writer, etc.) with one-click deploy.
+12 pre-configured agent profiles with one-click deploy.
+
+![Agent Presets](assets/screenshots/presets.png)
 
 ### Worker Fleet
-Monitor CPU, RAM, and disk usage across all connected PCs. Approve/reject new workers.
+Monitor CPU, RAM, and disk usage across all connected PCs.
+
+![Workers](assets/screenshots/workers.png)
+
+### Settings
+System health, LLM configuration, email, security, notifications, storage.
+
+![Settings](assets/screenshots/settings.png)
 
 ## Quick Start
 
