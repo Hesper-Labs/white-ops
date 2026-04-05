@@ -19,6 +19,10 @@
 
 ---
 
+<p align="center">
+  <img src="assets/demo.gif" alt="White-Ops Demo" width="700" />
+</p>
+
 Deploy AI agents on multiple PCs that handle everything a white-collar worker does: email, Excel, Word, PowerPoint, web research, data analysis, invoicing, CRM, payroll, and 45+ more tasks. Manage them all from a single admin panel.
 
 ## Key Features
