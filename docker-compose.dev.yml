@@ -1,0 +1,30 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./server:/app
+    environment:
+      - DEBUG=true
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    command: python -m agent.main
+    volumes:
+      - ./worker:/app
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: build
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
