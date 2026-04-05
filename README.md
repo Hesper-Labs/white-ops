@@ -1,11 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="White-Ops" width="80" />
-</p>
-
-<h1 align="center">White-Ops</h1>
-
-<p align="center">
-  <strong>Open-source AI workforce platform that replaces white-collar tasks with autonomous agents.</strong>
+  <img src="assets/social-preview.png" alt="White-Ops" width="700" />
 </p>
 
 <p align="center">
