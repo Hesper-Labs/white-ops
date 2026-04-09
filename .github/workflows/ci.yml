@@ -115,7 +115,7 @@ jobs:
           context: ./${{ matrix.service }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/${{ matrix.service }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/${{ matrix.service }}:latest
+            ghcr.io/hesper-labs/${{ matrix.service }}:${{ github.sha }}
+            ghcr.io/hesper-labs/${{ matrix.service }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
