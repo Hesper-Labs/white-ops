@@ -23,6 +23,10 @@ TOOL_CATEGORIES = [
     "finance",
     "hr",
     "integrations",
+    "devops",
+    "monitoring",
+    "cloud",
+    "security_tools",
 ]
 
 

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Text, Integer, ForeignKey, DateTime
+from sqlalchemy import CheckConstraint, Float, Index, String, Text, Integer, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,15 +11,24 @@ from app.models.base import Base
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
-        # Composite indexes for common queries
-        {"comment": "Tasks assigned to agents with status filtering"},
+        Index("ix_tasks_agent_status", "agent_id", "status"),
+        Index("ix_tasks_status_priority", "status", "priority"),
+        Index("ix_tasks_created_status", "created_at", "status"),
+        CheckConstraint(
+            "status IN ('pending', 'queued', 'assigned', 'in_progress', 'review', 'completed', 'failed', 'cancelled')",
+            name="ck_tasks_status",
+        ),
+        CheckConstraint(
+            "priority IN ('critical', 'high', 'medium', 'low')",
+            name="ck_tasks_priority",
+        ),
     )
 
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Status: pending, assigned, in_progress, review, completed, failed, cancelled
+    # Status: pending, queued, assigned, in_progress, review, completed, failed, cancelled
     status: Mapped[str] = mapped_column(String(50), default="pending", index=True)
     priority: Mapped[str] = mapped_column(String(20), default="medium")  # critical, high, medium, low
 
@@ -57,3 +66,10 @@ class Task(Base):
 
     # Required tools
     required_tools: Mapped[dict] = mapped_column(JSONB, default=list)
+
+    # Progress and cost tracking
+    progress_percent: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actual_duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cost_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)

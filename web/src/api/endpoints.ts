@@ -130,3 +130,130 @@ export const collaborationApi = {
 export const workersApi = {
   overview: withFallback(() => api.get("/workers/overview"), mockApi.workers.overview),
 };
+
+// --- Demo data for new API modules ---
+const DEMO_COST_SUMMARY = { data: { total: 127.45, period: "month", currency: "USD" } };
+const DEMO_DAILY_COSTS = { data: [] };
+const DEMO_AGENT_COSTS = { data: [] };
+const DEMO_PROVIDER_COSTS = { data: [] };
+const DEMO_BUDGET = { data: { monthly_limit: 500, current_spend: 127.45, currency: "USD" } };
+const DEMO_CIRCUIT_BREAKERS = { data: [] };
+const DEMO_DLQ = { data: [] };
+const DEMO_DLQ_STATS = { data: { total: 0, pending: 0, retried: 0, discarded: 0 } };
+const DEMO_SECURITY = { data: { mfa_enabled: false, password_policy: { min_length: 8 }, ip_whitelist: [] } };
+
+// Cost
+export const costApi = {
+  getSummary: () => api.get("/cost/summary").catch(() => DEMO_COST_SUMMARY),
+  getDaily: (days = 30) => api.get(`/cost/daily?days=${days}`).catch(() => DEMO_DAILY_COSTS),
+  getByAgent: () => api.get("/cost/by-agent").catch(() => DEMO_AGENT_COSTS),
+  getByProvider: () => api.get("/cost/by-provider").catch(() => DEMO_PROVIDER_COSTS),
+  getBudget: () => api.get("/cost/budget").catch(() => DEMO_BUDGET),
+  setBudget: (data: Record<string, unknown>) => api.put("/cost/budget", data),
+};
+
+// Circuit Breakers
+export const circuitBreakerApi = {
+  getAll: () => api.get("/circuit-breakers").catch(() => DEMO_CIRCUIT_BREAKERS),
+  get: (name: string) => api.get(`/circuit-breakers/${name}`),
+  forceOpen: (name: string) => api.post(`/circuit-breakers/${name}/force-open`),
+  forceClose: (name: string) => api.post(`/circuit-breakers/${name}/force-close`),
+  reset: (name: string) => api.post(`/circuit-breakers/${name}/reset`),
+};
+
+// Dead Letter Queue
+export const deadLetterApi = {
+  getAll: (params?: Record<string, string>) => api.get("/dead-letter", { params }).catch(() => DEMO_DLQ),
+  get: (id: string) => api.get(`/dead-letter/${id}`),
+  retry: (id: string) => api.post(`/dead-letter/${id}/retry`),
+  retryAll: () => api.post("/dead-letter/retry-all"),
+  discard: (id: string) => api.delete(`/dead-letter/${id}`),
+  getStats: () => api.get("/dead-letter/stats").catch(() => DEMO_DLQ_STATS),
+};
+
+// Security
+export const securityApi = {
+  getSettings: () => api.get("/security").catch(() => DEMO_SECURITY),
+  updatePasswordPolicy: (data: Record<string, unknown>) => api.put("/security/password-policy", data),
+  getSessions: () => api.get("/security/sessions").catch(() => ({ data: [] })),
+  deleteSession: (id: string) => api.delete(`/security/sessions/${id}`),
+  getIpRules: () => api.get("/security/ip-rules").catch(() => ({ data: [] })),
+  addIpRule: (data: Record<string, unknown>) => api.post("/security/ip-rules", data),
+  deleteIpRule: (id: string) => api.delete(`/security/ip-rules/${id}`),
+  getApiKeys: () => api.get("/security/api-keys").catch(() => ({ data: [] })),
+  createApiKey: (data: Record<string, unknown>) => api.post("/security/api-keys", data),
+  deleteApiKey: (id: string) => api.delete(`/security/api-keys/${id}`),
+};
+
+// Agent Memory
+export const agentMemoryApi = {
+  getMemories: (agentId: string, params?: Record<string, string>) =>
+    api.get(`/agents/${agentId}/memories`, { params }).catch(() => ({ data: [] })),
+  createMemory: (agentId: string, data: Record<string, unknown>) =>
+    api.post(`/agents/${agentId}/memories`, data),
+  updateMemory: (memoryId: string, data: Record<string, unknown>) =>
+    api.put(`/agents/memories/${memoryId}`, data),
+  deleteMemory: (memoryId: string) => api.delete(`/agents/memories/${memoryId}`),
+  clearAll: (agentId: string) => api.delete(`/agents/${agentId}/memories`),
+  getStats: (agentId: string) => api.get(`/agents/${agentId}/memory-stats`).catch(() => ({ data: {} })),
+};
+
+// Triggers
+export const triggersApi = {
+  getAll: () => api.get("/triggers").catch(() => ({ data: [] })),
+  get: (id: string) => api.get(`/triggers/${id}`),
+  create: (data: Record<string, unknown>) => api.post("/triggers", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/triggers/${id}`, data),
+  delete: (id: string) => api.delete(`/triggers/${id}`),
+  toggle: (id: string) => api.post(`/triggers/${id}/toggle`),
+  getHistory: (id: string) => api.get(`/triggers/${id}/history`),
+};
+
+// Notifications
+export const notificationsApi = {
+  getAll: (params?: Record<string, string>) => api.get("/notifications", { params }).catch(() => ({ data: [] })),
+  getUnreadCount: () => api.get("/notifications/unread-count").catch(() => ({ data: { count: 0 } })),
+  markRead: (id: string) => api.put(`/notifications/${id}/read`),
+  markAllRead: () => api.put("/notifications/read-all"),
+  getChannels: () => api.get("/notifications/channels").catch(() => ({ data: [] })),
+  addChannel: (data: Record<string, unknown>) => api.post("/notifications/channels", data),
+  getRules: () => api.get("/notifications/rules").catch(() => ({ data: [] })),
+};
+
+// Webhooks
+export const webhooksApi = {
+  getAll: () => api.get("/webhooks").catch(() => ({ data: [] })),
+  get: (id: string) => api.get(`/webhooks/${id}`),
+  create: (data: Record<string, unknown>) => api.post("/webhooks", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/webhooks/${id}`, data),
+  delete: (id: string) => api.delete(`/webhooks/${id}`),
+  test: (id: string) => api.post(`/webhooks/${id}/test`),
+};
+
+// Setup
+export const setupApi = {
+  getStatus: () => api.get("/settings/health").catch(() => ({ data: { database: "ok", redis: "ok", minio: "ok", mail: "ok" } })),
+  testLlm: (data: Record<string, unknown>) => api.post("/settings/test-llm", data).catch(() => ({ data: { success: false } })),
+};
+
+export const chatApi = {
+  getConversations: () => api.get("/chat/conversations").catch(() => ({ data: [] })),
+  getMessages: (convId: string) => api.get(`/chat/conversations/${convId}/messages`).catch(() => ({ data: [] })),
+  sendMessage: (convId: string, content: string) => api.post(`/chat/conversations/${convId}/messages`, { content }),
+  createConversation: (agentId: string, title?: string) => api.post("/chat/conversations", { agent_id: agentId, title }),
+  deleteConversation: (convId: string) => api.delete(`/chat/conversations/${convId}`),
+};
+
+export const marketplaceApi = {
+  getTemplates: (params?: Record<string, unknown>) => api.get("/marketplace/templates", { params }).catch(() => ({ data: [] })),
+  getTemplate: (id: string) => api.get(`/marketplace/templates/${id}`),
+  installTemplate: (id: string) => api.post(`/marketplace/templates/${id}/install`),
+};
+
+export const codeReviewApi = {
+  getAll: (params?: Record<string, unknown>) => api.get("/code-reviews", { params }).catch(() => ({ data: [] })),
+  get: (id: string) => api.get(`/code-reviews/${id}`),
+  approve: (id: string) => api.post(`/code-reviews/${id}/approve`),
+  reject: (id: string, reason: string) => api.post(`/code-reviews/${id}/reject`, { reason }),
+  addComment: (id: string, comment: string) => api.post(`/code-reviews/${id}/comments`, { comment }),
+};

@@ -2,9 +2,9 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select, or_
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
@@ -32,12 +32,13 @@ class KnowledgeUpdate(BaseModel):
 
 @router.get("/")
 async def list_knowledge(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     category: str | None = None,
     search: str | None = None,
-    limit: int = 50,
-) -> list[dict]:
+) -> dict:
     query = select(KnowledgeBase)
     if category:
         query = query.where(KnowledgeBase.category == category)
@@ -48,20 +49,29 @@ async def list_knowledge(
                 KnowledgeBase.content.ilike(f"%{search}%"),
             )
         )
-    result = await db.execute(query.order_by(KnowledgeBase.created_at.desc()).limit(limit))
+
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        query.order_by(KnowledgeBase.created_at.desc()).offset(skip).limit(limit)
+    )
     items = result.scalars().all()
-    return [
-        {
-            "id": str(k.id),
-            "title": k.title,
-            "content": k.content[:500],
-            "category": k.category,
-            "tags": k.tags,
-            "source": k.source,
-            "created_at": str(k.created_at),
-        }
-        for k in items
-    ]
+    return {
+        "items": [
+            {
+                "id": str(k.id),
+                "title": k.title,
+                "content": k.content[:500],
+                "category": k.category,
+                "tags": k.tags,
+                "source": k.source,
+                "created_at": str(k.created_at),
+            }
+            for k in items
+        ],
+        "total": total,
+    }
 
 
 @router.post("/", status_code=201)

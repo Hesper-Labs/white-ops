@@ -1,195 +1,241 @@
-"""RSS reader tool - fetch and parse RSS/Atom feeds."""
+"""RSS Feed tool - parse RSS/Atom feeds using feedparser and httpx."""
 
-import xml.etree.ElementTree as ET
+import json
 from typing import Any
 
 import httpx
+import structlog
 
 from agent.tools.base import BaseTool
 
-# Common namespaces
-NAMESPACES = {
-    "atom": "http://www.w3.org/2005/Atom",
-    "dc": "http://purl.org/dc/elements/1.1/",
-    "content": "http://purl.org/rss/1.0/modules/content/",
-}
+logger = structlog.get_logger()
+
+MAX_OUTPUT_BYTES = 50 * 1024
 
 
-class RSSReaderTool(BaseTool):
-    name = "rss_reader"
+def _truncate(result: str) -> str:
+    if len(result) > MAX_OUTPUT_BYTES:
+        return result[:MAX_OUTPUT_BYTES] + "\n... [output truncated at 50KB]"
+    return result
+
+
+class RSSFeedTool(BaseTool):
+    name = "rss_feed"
     description = (
-        "Fetch and parse RSS/Atom feeds. Retrieve feed entries, "
-        "list entry details, and search within feed content."
+        "Parse and read RSS/Atom feeds. Fetch feed entries, get latest items, "
+        "search across feeds, and create digests from multiple feeds."
     )
     parameters = {
         "type": "object",
         "properties": {
             "action": {
                 "type": "string",
-                "enum": ["fetch_feed", "list_entries", "search_feeds"],
-                "description": "Action to perform.",
+                "enum": ["parse_feed", "get_latest", "search_feeds", "create_digest"],
+                "description": "RSS action to perform.",
             },
             "url": {
                 "type": "string",
-                "description": "RSS/Atom feed URL.",
+                "description": "RSS/Atom feed URL (for parse_feed, get_latest, search_feeds).",
             },
             "urls": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "Multiple feed URLs (for search_feeds).",
+                "description": "Multiple feed URLs (for create_digest).",
+            },
+            "count": {
+                "type": "integer",
+                "description": "Number of entries to return (default 10).",
             },
             "query": {
                 "type": "string",
-                "description": "Search query (for search_feeds).",
+                "description": "Search query string (for search_feeds).",
             },
-            "limit": {
+            "max_per_feed": {
                 "type": "integer",
-                "description": "Maximum entries to return. Default 20.",
+                "description": "Max entries per feed for digest (default 5).",
             },
         },
         "required": ["action"],
     }
 
-    async def _fetch_xml(self, url: str) -> ET.Element:
+    async def _fetch_feed(self, url: str) -> dict:
+        """Fetch and parse an RSS/Atom feed using feedparser."""
+        try:
+            import feedparser
+        except ImportError:
+            # Fallback to raw XML parsing if feedparser not available
+            return await self._fetch_feed_raw(url)
+
         async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "WhiteOps-RSSReader/1.0"})
+            resp = await client.get(
+                url,
+                headers={"User-Agent": "WhiteOps-RSSFeed/1.0"},
+            )
             resp.raise_for_status()
-            return ET.fromstring(resp.text)
 
-    def _parse_rss(self, root: ET.Element) -> dict:
-        """Parse RSS 2.0 feed."""
-        channel = root.find("channel")
-        if channel is None:
-            return {"title": "", "entries": []}
-
-        feed_title = (channel.findtext("title") or "").strip()
-        feed_link = (channel.findtext("link") or "").strip()
-        feed_desc = (channel.findtext("description") or "").strip()
+        feed = feedparser.parse(resp.text)
 
         entries = []
-        for item in channel.findall("item"):
-            entry = {
-                "title": (item.findtext("title") or "").strip(),
-                "link": (item.findtext("link") or "").strip(),
-                "description": (item.findtext("description") or "").strip()[:500],
-                "pub_date": (item.findtext("pubDate") or "").strip(),
-                "author": (item.findtext("dc:creator", namespaces=NAMESPACES) or item.findtext("author") or "").strip(),
-                "guid": (item.findtext("guid") or "").strip(),
-            }
-            entries.append(entry)
+        for entry in feed.entries:
+            entries.append({
+                "title": getattr(entry, "title", ""),
+                "link": getattr(entry, "link", ""),
+                "published": getattr(entry, "published", getattr(entry, "updated", "")),
+                "summary": (getattr(entry, "summary", "") or "")[:500],
+                "author": getattr(entry, "author", ""),
+            })
 
         return {
-            "title": feed_title,
-            "link": feed_link,
-            "description": feed_desc,
+            "title": feed.feed.get("title", ""),
+            "link": feed.feed.get("link", ""),
+            "description": feed.feed.get("description", "")[:300],
             "entries": entries,
         }
 
-    def _parse_atom(self, root: ET.Element) -> dict:
-        """Parse Atom feed."""
-        ns = NAMESPACES["atom"]
+    async def _fetch_feed_raw(self, url: str) -> dict:
+        """Fallback XML parser when feedparser is not available."""
+        import xml.etree.ElementTree as ET
 
-        feed_title = (root.findtext(f"{{{ns}}}title") or "").strip()
-        link_el = root.find(f"{{{ns}}}link[@rel='alternate']")
-        if link_el is None:
-            link_el = root.find(f"{{{ns}}}link")
-        feed_link = link_el.get("href", "") if link_el is not None else ""
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            resp = await client.get(
+                url,
+                headers={"User-Agent": "WhiteOps-RSSFeed/1.0"},
+            )
+            resp.raise_for_status()
+
+        root = ET.fromstring(resp.text)
+        tag = root.tag.lower()
 
         entries = []
-        for item in root.findall(f"{{{ns}}}entry"):
-            link_el = item.find(f"{{{ns}}}link[@rel='alternate']")
-            if link_el is None:
-                link_el = item.find(f"{{{ns}}}link")
-
-            summary = (item.findtext(f"{{{ns}}}summary") or item.findtext(f"{{{ns}}}content") or "").strip()
-
-            author_el = item.find(f"{{{ns}}}author")
-            author = ""
-            if author_el is not None:
-                author = (author_el.findtext(f"{{{ns}}}name") or "").strip()
-
-            entry = {
-                "title": (item.findtext(f"{{{ns}}}title") or "").strip(),
-                "link": link_el.get("href", "") if link_el is not None else "",
-                "description": summary[:500],
-                "pub_date": (item.findtext(f"{{{ns}}}updated") or item.findtext(f"{{{ns}}}published") or "").strip(),
-                "author": author,
-                "guid": (item.findtext(f"{{{ns}}}id") or "").strip(),
-            }
-            entries.append(entry)
-
-        return {"title": feed_title, "link": feed_link, "entries": entries}
-
-    def _parse_feed(self, root: ET.Element) -> dict:
-        """Detect feed type and parse."""
-        tag = root.tag.lower()
         if "feed" in tag:
-            return self._parse_atom(root)
-        return self._parse_rss(root)
+            # Atom feed
+            ns = "http://www.w3.org/2005/Atom"
+            feed_title = (root.findtext(f"{{{ns}}}title") or "").strip()
+            for item in root.findall(f"{{{ns}}}entry"):
+                link_el = item.find(f"{{{ns}}}link[@rel='alternate']") or item.find(f"{{{ns}}}link")
+                entries.append({
+                    "title": (item.findtext(f"{{{ns}}}title") or "").strip(),
+                    "link": link_el.get("href", "") if link_el is not None else "",
+                    "published": (item.findtext(f"{{{ns}}}published") or item.findtext(f"{{{ns}}}updated") or "").strip(),
+                    "summary": (item.findtext(f"{{{ns}}}summary") or "").strip()[:500],
+                    "author": "",
+                })
+            return {"title": feed_title, "link": "", "description": "", "entries": entries}
+        else:
+            # RSS 2.0
+            channel = root.find("channel")
+            feed_title = (channel.findtext("title") or "").strip() if channel is not None else ""
+            items = channel.findall("item") if channel is not None else []
+            for item in items:
+                entries.append({
+                    "title": (item.findtext("title") or "").strip(),
+                    "link": (item.findtext("link") or "").strip(),
+                    "published": (item.findtext("pubDate") or "").strip(),
+                    "summary": (item.findtext("description") or "").strip()[:500],
+                    "author": (item.findtext("author") or "").strip(),
+                })
+            return {"title": feed_title, "link": "", "description": "", "entries": entries}
 
     async def execute(self, **kwargs: Any) -> Any:
-        action = kwargs["action"]
-        limit = kwargs.get("limit", 20)
+        action = kwargs.get("action", "")
+        logger.info("rss_feed_execute", action=action)
 
-        if action == "fetch_feed":
-            url = kwargs.get("url")
+        if action == "parse_feed":
+            url = kwargs.get("url", "")
             if not url:
-                return {"error": "url is required."}
+                return _truncate(json.dumps({"error": "'url' is required"}))
+
             try:
-                root = await self._fetch_xml(url)
-                feed = self._parse_feed(root)
-                feed["entries"] = feed["entries"][:limit]
+                feed = await self._fetch_feed(url)
                 feed["url"] = url
                 feed["entry_count"] = len(feed["entries"])
-                return feed
+                logger.info("rss_feed_parsed", url=url, entries=len(feed["entries"]))
+                return _truncate(json.dumps(feed))
             except httpx.HTTPError as e:
-                return {"error": f"Failed to fetch feed: {e}"}
-            except ET.ParseError as e:
-                return {"error": f"Failed to parse feed XML: {e}"}
+                logger.error("rss_fetch_failed", url=url, error=str(e))
+                return _truncate(json.dumps({"error": f"Failed to fetch feed: {e}"}))
+            except Exception as e:
+                logger.error("rss_parse_failed", url=url, error=str(e))
+                return _truncate(json.dumps({"error": f"Failed to parse feed: {e}"}))
 
-        elif action == "list_entries":
-            url = kwargs.get("url")
+        elif action == "get_latest":
+            url = kwargs.get("url", "")
+            count = kwargs.get("count", 10)
+
             if not url:
-                return {"error": "url is required."}
+                return _truncate(json.dumps({"error": "'url' is required"}))
+
             try:
-                root = await self._fetch_xml(url)
-                feed = self._parse_feed(root)
-                entries = feed["entries"][:limit]
-                return {
+                feed = await self._fetch_feed(url)
+                entries = feed["entries"][:count]
+                logger.info("rss_get_latest", url=url, count=len(entries))
+                return _truncate(json.dumps({
                     "feed_title": feed.get("title", ""),
                     "entries": entries,
                     "count": len(entries),
-                }
-            except (httpx.HTTPError, ET.ParseError) as e:
-                return {"error": f"Failed: {e}"}
+                }))
+            except Exception as e:
+                logger.error("rss_get_latest_failed", url=url, error=str(e))
+                return _truncate(json.dumps({"error": f"Failed to get latest entries: {e}"}))
 
         elif action == "search_feeds":
-            urls = kwargs.get("urls", [])
+            url = kwargs.get("url", "")
             query = kwargs.get("query", "").lower()
-            if not urls:
-                return {"error": "urls list is required."}
-            if not query:
-                return {"error": "query is required."}
 
-            results = []
+            if not url:
+                return _truncate(json.dumps({"error": "'url' is required"}))
+            if not query:
+                return _truncate(json.dumps({"error": "'query' is required"}))
+
+            try:
+                feed = await self._fetch_feed(url)
+                results = []
+                for entry in feed["entries"]:
+                    text = f"{entry.get('title', '')} {entry.get('summary', '')}".lower()
+                    if query in text:
+                        entry["feed_title"] = feed.get("title", "")
+                        results.append(entry)
+
+                logger.info("rss_search", url=url, query=query, results=len(results))
+                return _truncate(json.dumps({
+                    "query": query,
+                    "results": results,
+                    "count": len(results),
+                }))
+            except Exception as e:
+                logger.error("rss_search_failed", url=url, error=str(e))
+                return _truncate(json.dumps({"error": f"Feed search failed: {e}"}))
+
+        elif action == "create_digest":
+            urls = kwargs.get("urls", [])
+            max_per_feed = kwargs.get("max_per_feed", 5)
+
+            if not urls:
+                return _truncate(json.dumps({"error": "'urls' list is required"}))
+
+            digest = []
             errors = []
+
             for url in urls:
                 try:
-                    root = await self._fetch_xml(url)
-                    feed = self._parse_feed(root)
-                    for entry in feed["entries"]:
-                        text = f"{entry.get('title', '')} {entry.get('description', '')}".lower()
-                        if query in text:
-                            entry["feed_title"] = feed.get("title", "")
-                            entry["feed_url"] = url
-                            results.append(entry)
+                    feed = await self._fetch_feed(url)
+                    digest.append({
+                        "feed_title": feed.get("title", url),
+                        "feed_url": url,
+                        "entries": feed["entries"][:max_per_feed],
+                        "total_available": len(feed["entries"]),
+                    })
                 except Exception as e:
                     errors.append({"url": url, "error": str(e)})
 
-            results = results[:limit]
-            resp: dict[str, Any] = {"results": results, "count": len(results)}
+            logger.info("rss_digest_created", feeds=len(digest), errors=len(errors))
+            result: dict[str, Any] = {
+                "digest": digest,
+                "feeds_processed": len(digest),
+                "total_entries": sum(len(d["entries"]) for d in digest),
+            }
             if errors:
-                resp["errors"] = errors
-            return resp
+                result["errors"] = errors
+            return _truncate(json.dumps(result))
 
-        return {"error": f"Unknown action: {action}"}
+        return _truncate(json.dumps({"error": f"Unknown action: {action}"}))

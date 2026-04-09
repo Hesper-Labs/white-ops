@@ -1,7 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_operator
@@ -14,20 +14,30 @@ from app.config import settings
 router = APIRouter()
 
 
-@router.get("/", response_model=list[AgentResponse])
+@router.get("/")
 async def list_agents(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    status_filter: str | None = Query(None),
+    role: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-    status_filter: str | None = None,
-    role: str | None = None,
-) -> list[Agent]:
+) -> dict:
     query = select(Agent)
     if status_filter:
         query = query.where(Agent.status == status_filter)
     if role:
         query = query.where(Agent.role == role)
-    result = await db.execute(query.order_by(Agent.created_at.desc()))
-    return list(result.scalars().all())
+
+    # Total count (before pagination)
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        query.order_by(Agent.created_at.desc()).offset(skip).limit(limit)
+    )
+    agents = result.scalars().all()
+    return {"items": [AgentResponse.model_validate(a) for a in agents], "total": total}
 
 
 @router.post("/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)

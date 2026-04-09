@@ -25,6 +25,21 @@ import AgentDetail from "./pages/AgentDetail";
 import AgentPresets from "./pages/AgentPresets";
 import TaskDetail from "./pages/TaskDetail";
 import WorkflowBuilder from "./pages/WorkflowBuilder";
+import CostDashboard from "./pages/CostDashboard";
+import DeadLetterQueue from "./pages/DeadLetterQueue";
+import SecuritySettings from "./pages/SecuritySettings";
+import AgentMemory from "./pages/AgentMemory";
+import CircuitBreakers from "./pages/CircuitBreakers";
+import CodeReview from "./pages/CodeReview";
+import SetupWizard from "./pages/SetupWizard";
+import Marketplace from "./pages/Marketplace";
+import AgentChat from "./pages/AgentChat";
+import LiveTerminal from "./pages/LiveTerminal";
+import SSHConnections from "./pages/SSHConnections";
+import Secrets from "./pages/Secrets";
+import Approvals from "./pages/Approvals";
+import Triggers from "./pages/Triggers";
+import NotificationCenter from "./pages/NotificationCenter";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuthStore();
@@ -55,6 +70,7 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/setup" element={<SetupWizard />} />
         <Route
           path="/*"
           element={
@@ -82,6 +98,21 @@ export default function App() {
                       <Route path="/workers" element={<Workers />} />
                       <Route path="/users" element={<UserManagement />} />
                       <Route path="/audit" element={<AuditLog />} />
+                      <Route path="/costs" element={<CostDashboard />} />
+                      <Route path="/dead-letter" element={<DeadLetterQueue />} />
+                      <Route path="/security" element={<SecuritySettings />} />
+                      <Route path="/agent-memory" element={<AgentMemory />} />
+                      <Route path="/circuit-breakers" element={<CircuitBreakers />} />
+                      <Route path="/reviews" element={<CodeReview />} />
+                      <Route path="/marketplace" element={<Marketplace />} />
+                      <Route path="/chat" element={<AgentChat />} />
+                      <Route path="/chat/:agentId" element={<AgentChat />} />
+                      <Route path="/terminal/:agentId" element={<LiveTerminal />} />
+                      <Route path="/ssh-connections" element={<SSHConnections />} />
+                      <Route path="/secrets" element={<Secrets />} />
+                      <Route path="/approvals" element={<Approvals />} />
+                      <Route path="/triggers" element={<Triggers />} />
+                      <Route path="/notifications" element={<NotificationCenter />} />
                       <Route path="/settings" element={<Settings />} />
                     </Routes>
                   </ErrorBoundary>

@@ -22,10 +22,12 @@ import {
   Zap,
   DollarSign,
   Cpu,
+  Shield,
 } from "lucide-react";
 import { agentsApi } from "../api/endpoints";
 import { formatDate } from "../lib/utils";
 import toast from "react-hot-toast";
+import AutonomyConfig from "../components/agent/AutonomyConfig";
 
 const statusMap: Record<string, { badge: string; dot: string }> = {
   idle: { badge: "badge-green", dot: "online" },
@@ -46,12 +48,13 @@ const roleColors: Record<string, string> = {
   accountant: "badge-yellow",
 };
 
-const TABS = ["Overview", "Configuration", "Tools", "Logs", "Performance"] as const;
+const TABS = ["Overview", "Configuration", "Safety", "Tools", "Logs", "Performance"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_ICONS: Record<Tab, React.ReactNode> = {
   Overview: <Bot className="h-3.5 w-3.5" />,
   Configuration: <Settings className="h-3.5 w-3.5" />,
+  Safety: <Shield className="h-3.5 w-3.5" />,
   Tools: <Wrench className="h-3.5 w-3.5" />,
   Logs: <ScrollText className="h-3.5 w-3.5" />,
   Performance: <BarChart3 className="h-3.5 w-3.5" />,
@@ -154,7 +157,7 @@ export default function AgentDetail() {
   return (
     <div>
       {/* Back nav */}
-      <button onClick={() => navigate("/agents")} className="btn-ghost flex items-center gap-1.5 mb-4 text-neutral-500 hover:text-neutral-900">
+      <button onClick={() => navigate("/agents")} className="btn-ghost flex items-center gap-1.5 mb-4 text-neutral-500 hover:text-neutral-900 dark:text-white">
         <ArrowLeft className="h-3.5 w-3.5" /> Back to Agents
       </button>
 
@@ -162,11 +165,11 @@ export default function AgentDetail() {
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center">
-            <Bot className="h-5 w-5 text-neutral-500" />
+            <Bot className="h-5 w-5 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-neutral-900">{agent.name}</h1>
+              <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{agent.name}</h1>
               <div className={`status-dot ${st.dot}`} />
               <span className={st.badge}>{agent.status}</span>
               <span className={roleBadge}>{agent.role}</span>
@@ -204,7 +207,7 @@ export default function AgentDetail() {
             onClick={() => setActiveTab(tab)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
               activeTab === tab
-                ? "border-neutral-900 text-neutral-900"
+                ? "border-neutral-900 text-neutral-900 dark:text-white"
                 : "border-transparent text-neutral-400 hover:text-neutral-600"
             }`}
           >
@@ -216,10 +219,28 @@ export default function AgentDetail() {
       {/* Tab content */}
       {activeTab === "Overview" && <OverviewTab agent={agent} />}
       {activeTab === "Configuration" && <ConfigurationTab agent={agent} />}
+      {activeTab === "Safety" && <SafetyTab agent={agent} />}
       {activeTab === "Tools" && <ToolsTab agent={agent} />}
       {activeTab === "Logs" && <LogsTab />}
       {activeTab === "Performance" && <PerformanceTab />}
     </div>
+  );
+}
+
+/* ---------- Safety Tab ---------- */
+function SafetyTab({ agent }: { agent: any }) {
+  const queryClient = useQueryClient();
+  const updateMut = useMutation({
+    mutationFn: (data: Record<string, unknown>) => agentsApi.update(agent.id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["agent", agent.id] }); },
+    onError: () => toast.error("Failed to save autonomy settings"),
+  });
+
+  return (
+    <AutonomyConfig
+      agent={agent}
+      onSave={(config) => updateMut.mutate(config)}
+    />
   );
 }
 
@@ -235,37 +256,37 @@ function OverviewTab({ agent }: { agent: any }) {
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-            <span className="text-xs text-neutral-400">Completed</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Completed</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{agent.tasks_completed ?? 0}</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{agent.tasks_completed ?? 0}</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <XCircle className="h-4 w-4 text-red-500" />
-            <span className="text-xs text-neutral-400">Failed</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Failed</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{agent.tasks_failed ?? 0}</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{agent.tasks_failed ?? 0}</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="h-4 w-4 text-amber-500" />
-            <span className="text-xs text-neutral-400">Success Rate</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Success Rate</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{successRate}%</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{successRate}%</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-4 w-4 text-blue-500" />
-            <span className="text-xs text-neutral-400">Total Tasks</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Total Tasks</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{total}</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{total}</p>
         </div>
       </div>
 
       {/* Info grid */}
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-neutral-900">Agent Information</h3>
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Agent Information</h3>
           <div className="space-y-3">
             <InfoRow icon={<Bot className="h-3.5 w-3.5" />} label="Name" value={agent.name} />
             <InfoRow icon={<Mail className="h-3.5 w-3.5" />} label="Email" value={agent.email ?? "N/A"} />
@@ -275,7 +296,7 @@ function OverviewTab({ agent }: { agent: any }) {
           </div>
         </div>
         <div className="card p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-neutral-900">Description</h3>
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Description</h3>
           <p className="text-sm text-neutral-600 leading-relaxed">{agent.description || "No description provided."}</p>
           <h3 className="text-sm font-semibold text-neutral-900 pt-2">System Prompt</h3>
           <p className="text-sm text-neutral-500 font-mono bg-neutral-50 rounded p-3 text-xs leading-relaxed">
@@ -290,7 +311,7 @@ function OverviewTab({ agent }: { agent: any }) {
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-neutral-400">{icon}</span>
+      <span className="text-neutral-400 dark:text-neutral-500">{icon}</span>
       <span className="text-xs text-neutral-400 w-24">{label}</span>
       <span className="text-sm text-neutral-700 font-medium">{value}</span>
     </div>
@@ -327,7 +348,7 @@ function ConfigurationTab({ agent }: { agent: any }) {
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-2xl">
       <div className="card p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-neutral-900">General</h3>
+        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">General</h3>
         <div>
           <label className="block text-xs font-medium text-neutral-500 mb-1">Name</label>
           <input className="input" value={form.name} onChange={(e) => set("name", e.target.value)} required />
@@ -362,7 +383,7 @@ function ConfigurationTab({ agent }: { agent: any }) {
       </div>
 
       <div className="card p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-neutral-900">LLM Settings</h3>
+        <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">LLM Settings</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-neutral-500 mb-1">Provider</label>
@@ -380,7 +401,7 @@ function ConfigurationTab({ agent }: { agent: any }) {
         </div>
         <div>
           <label className="block text-xs font-medium text-neutral-500 mb-1">
-            Temperature: <span className="font-bold text-neutral-700">{form.temperature}</span>
+            Temperature: <span className="font-bold text-neutral-700 dark:text-neutral-300">{form.temperature}</span>
           </label>
           <input
             type="range"
@@ -454,7 +475,7 @@ function ToolsTab({ agent }: { agent: any }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-neutral-400">
+        <p className="text-xs text-neutral-400 dark:text-neutral-500">
           {enabledCount} of {totalCount} tools enabled
         </p>
         <button
@@ -510,7 +531,7 @@ function LogsTab() {
             </div>
           );
         })}
-        <div className="flex gap-3 px-2 py-0.5 mt-2 text-neutral-500">
+        <div className="flex gap-3 px-2 py-0.5 mt-2 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500">
           <span>---</span>
           <span>End of log (10 entries)</span>
         </div>
@@ -531,30 +552,30 @@ function PerformanceTab() {
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="h-4 w-4 text-amber-500" />
-            <span className="text-xs text-neutral-400">Total Tasks</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Total Tasks</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{perf.totalTasks}</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{perf.totalTasks}</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-4 w-4 text-blue-500" />
-            <span className="text-xs text-neutral-400">Avg Completion</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Avg Completion</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{perf.avgCompletionTime}</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{perf.avgCompletionTime}</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Brain className="h-4 w-4 text-purple-500" />
-            <span className="text-xs text-neutral-400">Tokens Used</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Tokens Used</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{(perf.totalTokensUsed / 1_000_000).toFixed(2)}M</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{(perf.totalTokensUsed / 1_000_000).toFixed(2)}M</p>
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="h-4 w-4 text-emerald-500" />
-            <span className="text-xs text-neutral-400">Estimated Cost</span>
+            <span className="text-xs text-neutral-400 dark:text-neutral-500">Estimated Cost</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{perf.estimatedCost}</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white">{perf.estimatedCost}</p>
         </div>
       </div>
 
@@ -564,12 +585,12 @@ function PerformanceTab() {
         <div className="flex items-end gap-3 h-32">
           {perf.tasksPerDay.map((d) => (
             <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-              <span className="text-xs font-medium text-neutral-900">{d.count}</span>
+              <span className="text-xs font-medium text-neutral-900 dark:text-white">{d.count}</span>
               <div
                 className="w-full bg-neutral-200 rounded-t"
                 style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: 4 }}
               />
-              <span className="text-[10px] text-neutral-400">{d.day}</span>
+              <span className="text-[10px] text-neutral-400 dark:text-neutral-500">{d.day}</span>
             </div>
           ))}
         </div>
@@ -578,15 +599,15 @@ function PerformanceTab() {
       {/* Extra stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-4">
-          <span className="text-xs text-neutral-400">Success Rate</span>
+          <span className="text-xs text-neutral-400 dark:text-neutral-500">Success Rate</span>
           <p className="text-lg font-bold text-neutral-900 mt-1">{perf.successRate}%</p>
         </div>
         <div className="card p-4">
-          <span className="text-xs text-neutral-400">Avg Tokens / Task</span>
+          <span className="text-xs text-neutral-400 dark:text-neutral-500">Avg Tokens / Task</span>
           <p className="text-lg font-bold text-neutral-900 mt-1">{perf.avgTokensPerTask.toLocaleString()}</p>
         </div>
         <div className="card p-4">
-          <span className="text-xs text-neutral-400">Peak Hour</span>
+          <span className="text-xs text-neutral-400 dark:text-neutral-500">Peak Hour</span>
           <p className="text-lg font-bold text-neutral-900 mt-1">{perf.peakHour}</p>
         </div>
       </div>

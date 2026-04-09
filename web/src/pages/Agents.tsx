@@ -28,7 +28,7 @@ export default function Agents() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">Agents</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Agents</h1>
           <p className="text-xs text-neutral-400 mt-0.5">{agents.length} agents configured</p>
         </div>
         <button className="btn-primary flex items-center gap-1.5" onClick={() => setShowCreate(true)}>
@@ -68,7 +68,7 @@ export default function Agents() {
                       <div className="flex items-center gap-2.5">
                         <div className={`status-dot ${st.dot}`} />
                         <div>
-                          <p className="text-sm font-semibold text-neutral-900">{agent.name}</p>
+                          <p className="text-sm font-semibold text-neutral-900 dark:text-white">{agent.name}</p>
                           {agent.description && <p className="text-xs text-neutral-400 mt-0.5 max-w-xs truncate">{agent.description}</p>}
                         </div>
                       </div>
@@ -76,13 +76,13 @@ export default function Agents() {
                     <td className="px-4 py-3"><span className="text-xs font-medium text-neutral-600 capitalize">{agent.role}</span></td>
                     <td className="px-4 py-3"><span className={st.badge}>{agent.status}</span></td>
                     <td className="px-4 py-3">
-                      <span className="text-xs text-neutral-500">{agent.llm_provider}</span>
+                      <span className="text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-500">{agent.llm_provider}</span>
                       <span className="text-xs text-neutral-300 mx-1">/</span>
                       <span className="text-xs text-neutral-500 font-mono">{String(agent.llm_model).split("/").pop()?.slice(0, 20)}</span>
                     </td>
                     <td className="px-4 py-3 text-right"><span className="text-sm font-medium text-emerald-600">{agent.tasks_completed}</span></td>
                     <td className="px-4 py-3 text-right"><span className="text-sm font-medium text-red-500">{agent.tasks_failed}</span></td>
-                    <td className="px-4 py-3 text-right text-xs text-neutral-400">{formatDate(agent.created_at)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-neutral-400 dark:text-neutral-500">{formatDate(agent.created_at)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         {agent.status === "offline" || agent.status === "paused" ? (

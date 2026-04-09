@@ -23,13 +23,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: localStorage.getItem("whiteops_token"),
   isLoading: true,
-  demoMode: false,
+  demoMode: localStorage.getItem("whiteops_demo") === "true",
 
   login: async (email: string, password: string) => {
     try {
       const response = await authApi.login(email, password);
       const { access_token } = response.data;
       localStorage.setItem("whiteops_token", access_token);
+      localStorage.removeItem("whiteops_demo");
       set({ token: access_token });
 
       const meResponse = await authApi.me();
@@ -38,6 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Backend not available - enter demo mode
       const demoAuth = await mockApi.auth.login();
       localStorage.setItem("whiteops_token", demoAuth.data.access_token);
+      localStorage.setItem("whiteops_demo", "true");
       const demoUser = await mockApi.auth.me();
       set({
         user: demoUser.data,
@@ -50,6 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem("whiteops_token");
+    localStorage.removeItem("whiteops_demo");
     set({ user: null, token: null, demoMode: false });
   },
 
@@ -63,7 +66,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       const response = await authApi.me();
       set({ user: response.data, token, isLoading: false, demoMode: false });
     } catch {
-      if (token === "demo-token-xxx") {
+      const state = useAuthStore.getState();
+      if (state.demoMode) {
         const demoUser = await mockApi.auth.me();
         set({ user: demoUser.data, token, isLoading: false, demoMode: true });
       } else {

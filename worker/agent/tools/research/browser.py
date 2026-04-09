@@ -32,16 +32,41 @@ class BrowserTool(BaseTool):
         super().__init__()
         self._browser = None
         self._page = None
+        self._playwright = None
 
     async def _ensure_browser(self) -> None:
         if self._browser is None:
             from playwright.async_api import async_playwright
-            pw = await async_playwright().start()
-            self._browser = await pw.chromium.launch(headless=True)
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch(headless=True)
             self._page = await self._browser.new_page()
+            self._page.set_default_navigation_timeout(30000)
+            self._page.set_default_timeout(30000)
+
+    async def cleanup(self) -> None:
+        """Close browser resources."""
+        try:
+            if self._page:
+                await self._page.close()
+                self._page = None
+            if self._browser:
+                await self._browser.close()
+                self._browser = None
+            if self._playwright:
+                await self._playwright.stop()
+                self._playwright = None
+        except Exception:
+            pass
 
     async def execute(self, **kwargs: Any) -> Any:
-        await self._ensure_browser()
+        try:
+            await self._ensure_browser()
+            return await self._execute_action(**kwargs)
+        except Exception:
+            await self.cleanup()
+            raise
+
+    async def _execute_action(self, **kwargs: Any) -> Any:
         action = kwargs["action"]
 
         if action == "navigate":

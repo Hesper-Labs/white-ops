@@ -148,13 +148,13 @@ export default function AgentPresets() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">Agent Presets</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Agent Presets</h1>
           <p className="text-xs text-neutral-400 mt-0.5">{PRESETS.length} preset profiles available</p>
         </div>
       </div>
 
       {/* Category tabs */}
-      <div className="flex items-center gap-1 mb-6 border-b border-neutral-200">
+      <div className="flex items-center gap-1 mb-6 border-b border-neutral-200 dark:border-neutral-700">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -162,7 +162,7 @@ export default function AgentPresets() {
             className={cn(
               "px-4 py-2 text-xs font-medium transition-colors border-b-2 -mb-px",
               activeTab === tab.key
-                ? "border-neutral-900 text-neutral-900"
+                ? "border-neutral-900 text-neutral-900 dark:text-white"
                 : "border-transparent text-neutral-400 hover:text-neutral-600",
             )}
           >
@@ -178,10 +178,10 @@ export default function AgentPresets() {
             {/* Top */}
             <div className="flex items-start gap-3 mb-3">
               <div className="h-9 w-9 rounded-md bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0">
-                <Bot className="h-4.5 w-4.5 text-neutral-500" />
+                <Bot className="h-4.5 w-4.5 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-neutral-900">{preset.name}</h3>
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">{preset.name}</h3>
                 <p className="text-[11px] text-neutral-400 font-medium">{preset.role}</p>
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function AgentPresets() {
 
             {/* LLM */}
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">LLM</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">LLM</span>
               <span className="badge-blue">{preset.llm}</span>
             </div>
 

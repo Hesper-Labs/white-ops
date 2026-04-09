@@ -27,7 +27,7 @@ export default function UserManagement() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">User Management</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">User Management</h1>
           <p className="text-xs text-neutral-400 mt-0.5">{users.length} users</p>
         </div>
         <button className="btn-primary flex items-center gap-1.5" onClick={() => setShowCreate(true)}>
@@ -48,19 +48,19 @@ export default function UserManagement() {
           </thead>
           <tbody>
             {users.map((user: any) => (
-              <tr key={user.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+              <tr key={user.id} className="border-b border-neutral-100 hover:bg-neutral-50 dark:bg-neutral-800/50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     <div className="h-7 w-7 rounded-md bg-neutral-900 text-white flex items-center justify-center text-xs font-bold">
                       {user.full_name?.[0] ?? "?"}
                     </div>
-                    <span className="text-sm font-semibold text-neutral-900">{user.full_name}</span>
+                    <span className="text-sm font-semibold text-neutral-900 dark:text-white">{user.full_name}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-600">{user.email}</td>
                 <td className="px-4 py-3"><span className={roleBadge[user.role] ?? "badge-gray"}>{user.role}</span></td>
                 <td className="px-4 py-3">{user.is_active ? <span className="badge-green">active</span> : <span className="badge-red">disabled</span>}</td>
-                <td className="px-4 py-3 text-xs text-neutral-400">{formatDate(user.created_at)}</td>
+                <td className="px-4 py-3 text-xs text-neutral-400 dark:text-neutral-500">{formatDate(user.created_at)}</td>
               </tr>
             ))}
           </tbody>
@@ -91,7 +91,7 @@ export default function UserManagement() {
                 ["Delete Resources", true, false, false],
               ].map(([perm, admin, operator, viewer]) => (
                 <tr key={perm as string}>
-                  <td className="py-2 pr-4 text-neutral-700">{perm as string}</td>
+                  <td className="py-2 pr-4 text-neutral-700 dark:text-neutral-300">{perm as string}</td>
                   <td className="py-2 px-4 text-center">{admin ? "Yes" : "-"}</td>
                   <td className="py-2 px-4 text-center">{operator ? "Yes" : "-"}</td>
                   <td className="py-2 px-4 text-center">{viewer ? "Yes" : "-"}</td>

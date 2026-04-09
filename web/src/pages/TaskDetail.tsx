@@ -38,7 +38,7 @@ const priorityConfig: Record<string, { badge: string; icon: string }> = {
   critical: { badge: "badge-red", icon: "text-red-500" },
   high: { badge: "badge-yellow", icon: "text-orange-500" },
   medium: { badge: "badge-blue", icon: "text-blue-500" },
-  low: { badge: "badge-gray", icon: "text-neutral-400" },
+  low: { badge: "badge-gray", icon: "text-neutral-400 dark:text-neutral-500" },
 };
 
 const MOCK_TOOL_CALLS = [
@@ -113,14 +113,14 @@ export default function TaskDetail() {
   const status = task.status as string;
   const priority = task.priority as string;
   const statusBadge = statusColors[status] ?? "badge-gray";
-  const prioConfig = priorityConfig[priority] ?? { badge: "badge-gray", icon: "text-neutral-400" };
+  const prioConfig = priorityConfig[priority] ?? { badge: "badge-gray", icon: "text-neutral-400 dark:text-neutral-500" };
   const canCancel = !["completed", "cancelled", "failed"].includes(status);
   const agentName = task.agent_id ? (MOCK_AGENT_NAMES[task.agent_id as string] ?? task.agent_id) : "Unassigned";
 
   return (
     <div>
       {/* Back nav */}
-      <button onClick={() => navigate("/tasks")} className="btn-ghost flex items-center gap-1.5 mb-4 text-neutral-500 hover:text-neutral-900">
+      <button onClick={() => navigate("/tasks")} className="btn-ghost flex items-center gap-1.5 mb-4 text-neutral-500 hover:text-neutral-900 dark:text-white">
         <ArrowLeft className="h-3.5 w-3.5" /> Back to Tasks
       </button>
 
@@ -128,7 +128,7 @@ export default function TaskDetail() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <h1 className="text-lg font-bold text-neutral-900">{task.title}</h1>
+            <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{task.title}</h1>
             <span className={statusBadge}>{status.replace("_", " ")}</span>
             <span className={prioConfig.badge}>{priority}</span>
           </div>
@@ -153,7 +153,7 @@ export default function TaskDetail() {
         <div className="col-span-2 space-y-6">
           {/* Task Information */}
           <div className="card p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-neutral-900">Task Information</h3>
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Task Information</h3>
             <div className="grid grid-cols-2 gap-y-3 gap-x-6">
               <InfoRow icon={<Bot className="h-3.5 w-3.5" />} label="Agent" value={agentName} />
               <InfoRow icon={<User className="h-3.5 w-3.5" />} label="Created By" value={task.assigned_by ?? "System"} />
@@ -198,19 +198,19 @@ export default function TaskDetail() {
           {/* Output Files */}
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-neutral-900 mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-neutral-500" /> Output Files
+              <FileText className="h-4 w-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" /> Output Files
             </h3>
             {MOCK_OUTPUT_FILES.length === 0 ? (
-              <p className="text-xs text-neutral-400">No output files generated.</p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500">No output files generated.</p>
             ) : (
               <div className="space-y-2">
                 {MOCK_OUTPUT_FILES.map((file) => (
                   <div key={file.id} className="flex items-center justify-between py-2 px-3 bg-neutral-50 rounded-lg">
                     <div className="flex items-center gap-2.5">
-                      <FileText className="h-4 w-4 text-neutral-400" />
+                      <FileText className="h-4 w-4 text-neutral-400 dark:text-neutral-500" />
                       <div>
-                        <p className="text-sm font-medium text-neutral-700">{file.filename}</p>
-                        <p className="text-[10px] text-neutral-400">{file.size}</p>
+                        <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{file.filename}</p>
+                        <p className="text-[10px] text-neutral-400 dark:text-neutral-500">{file.size}</p>
                       </div>
                     </div>
                     <button className="btn-ghost flex items-center gap-1 text-xs" onClick={() => toast.success(`Download ${file.filename} (demo)`)}>
@@ -225,7 +225,7 @@ export default function TaskDetail() {
           {/* Tool Calls Log */}
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-neutral-900 mb-3 flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-neutral-500" /> Tool Calls
+              <Terminal className="h-4 w-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" /> Tool Calls
             </h3>
             <div className="bg-neutral-900 rounded-lg p-4 font-mono text-xs leading-relaxed overflow-x-auto">
               {MOCK_TOOL_CALLS.map((call, i) => {
@@ -241,7 +241,7 @@ export default function TaskDetail() {
                   </div>
                 );
               })}
-              <div className="flex gap-3 px-2 py-0.5 mt-2 text-neutral-500">
+              <div className="flex gap-3 px-2 py-0.5 mt-2 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500">
                 <span>---</span>
                 <span>Task execution complete ({MOCK_TOOL_CALLS.length} tool calls)</span>
               </div>
@@ -261,7 +261,7 @@ export default function TaskDetail() {
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="text-neutral-400">{icon}</span>
+      <span className="text-neutral-400 dark:text-neutral-500">{icon}</span>
       <span className="text-xs text-neutral-400 w-20">{label}</span>
       <span className="text-sm text-neutral-700 font-medium">{value}</span>
     </div>
@@ -291,7 +291,7 @@ function CommentsSection() {
   return (
     <div className="card p-5">
       <h3 className="text-sm font-semibold text-neutral-900 mb-4 flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-neutral-500" /> Comments
+        <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" /> Comments
         <span className="badge-gray ml-1">{comments.length}</span>
       </h3>
 
@@ -301,9 +301,9 @@ function CommentsSection() {
           <div key={comment.id} className="border-b border-neutral-100 pb-3 last:border-0">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-5 h-5 rounded-full bg-neutral-200 flex items-center justify-center">
-                <User className="h-3 w-3 text-neutral-500" />
+                <User className="h-3 w-3 text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" />
               </div>
-              <span className="text-xs font-semibold text-neutral-700">{comment.author}</span>
+              <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">{comment.author}</span>
               <span className="text-[10px] text-neutral-300">{formatDate(comment.created_at)}</span>
             </div>
             <p className="text-xs text-neutral-600 leading-relaxed pl-7">{comment.text}</p>

@@ -2,9 +2,9 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
@@ -31,28 +31,39 @@ class CollaborationMessage(BaseModel):
 
 @router.get("/")
 async def list_collaborations(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     status: str | None = None,
-) -> list[dict]:
+) -> dict:
     query = select(AgentCollaboration)
     if status:
         query = query.where(AgentCollaboration.status == status)
-    result = await db.execute(query.order_by(AgentCollaboration.created_at.desc()))
+
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        query.order_by(AgentCollaboration.created_at.desc()).offset(skip).limit(limit)
+    )
     items = result.scalars().all()
-    return [
-        {
-            "id": str(c.id),
-            "name": c.name,
-            "description": c.description,
-            "status": c.status,
-            "participants": c.participants,
-            "message_count": len(c.messages) if c.messages else 0,
-            "task_id": c.task_id,
-            "created_at": str(c.created_at),
-        }
-        for c in items
-    ]
+    return {
+        "items": [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "description": c.description,
+                "status": c.status,
+                "participants": c.participants,
+                "message_count": len(c.messages) if c.messages else 0,
+                "task_id": c.task_id,
+                "created_at": str(c.created_at),
+            }
+            for c in items
+        ],
+        "total": total,
+    }
 
 
 @router.post("/", status_code=201)

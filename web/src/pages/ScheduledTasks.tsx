@@ -16,7 +16,7 @@ export default function ScheduledTasks() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">Scheduled Tasks</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Scheduled Tasks</h1>
           <p className="text-xs text-neutral-400 mt-0.5">Recurring automated tasks</p>
         </div>
         <button className="btn-primary flex items-center gap-1.5" onClick={() => setShowCreate(true)}>
@@ -39,16 +39,16 @@ export default function ScheduledTasks() {
           </thead>
           <tbody>
             {DEMO_SCHEDULES.map((s) => (
-              <tr key={s.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+              <tr key={s.id} className="border-b border-neutral-100 hover:bg-neutral-50 dark:bg-neutral-800/50">
                 <td className="px-4 py-3">
-                  <p className="text-sm font-semibold text-neutral-900">{s.name}</p>
+                  <p className="text-sm font-semibold text-neutral-900 dark:text-white">{s.name}</p>
                   <p className="text-xs text-neutral-400 mt-0.5">{s.description}</p>
                 </td>
                 <td className="px-4 py-3"><code className="text-xs bg-neutral-100 px-2 py-1 rounded font-mono">{s.cron}</code></td>
                 <td className="px-4 py-3 text-sm text-neutral-600">{s.agent}</td>
                 <td className="px-4 py-3">{s.enabled ? <span className="badge-green">active</span> : <span className="badge-gray">paused</span>}</td>
-                <td className="px-4 py-3 text-xs text-neutral-500">{s.last_run ? new Date(s.last_run).toLocaleDateString("tr-TR") : "-"}</td>
-                <td className="px-4 py-3 text-xs text-neutral-500">{s.next_run ? new Date(s.next_run).toLocaleDateString("tr-TR") : "-"}</td>
+                <td className="px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-500">{s.last_run ? new Date(s.last_run).toLocaleDateString() : "-"}</td>
+                <td className="px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-500">{s.next_run ? new Date(s.next_run).toLocaleDateString() : "-"}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1 justify-end">
                     <button className="btn-ghost" title={s.enabled ? "Pause" : "Resume"} onClick={() => toast.success(s.enabled ? "Paused" : "Resumed")}>
