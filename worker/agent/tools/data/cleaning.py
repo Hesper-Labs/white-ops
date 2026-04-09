@@ -2,208 +2,312 @@
 
 import io
 import json
+from pathlib import Path
 from typing import Any
 
+import structlog
+
 from agent.tools.base import BaseTool
+
+logger = structlog.get_logger()
+
+MAX_OUTPUT_BYTES = 50 * 1024
+
+
+def _truncate(result: str) -> str:
+    if len(result) > MAX_OUTPUT_BYTES:
+        return result[:MAX_OUTPUT_BYTES] + "\n... [output truncated at 50KB]"
+    return result
 
 
 class DataCleaningTool(BaseTool):
     name = "data_cleaning"
     description = (
-        "Clean and normalize data: remove duplicates, fill missing values, "
-        "normalize text, detect outliers, and standardize date formats. "
-        "Accepts CSV or JSON data as input."
+        "Clean and normalize datasets: remove duplicates, trim whitespace, normalize case, "
+        "fill null values, remove empty rows, deduplicate by columns, fill missing values "
+        "with various strategies, and detect outliers using IQR or Z-score methods. "
+        "Supports CSV and JSON files."
     )
     parameters = {
         "type": "object",
         "properties": {
             "action": {
                 "type": "string",
-                "enum": [
-                    "remove_duplicates",
-                    "fill_missing",
-                    "normalize",
-                    "detect_outliers",
-                    "standardize_dates",
-                ],
+                "enum": ["clean", "deduplicate", "fill_missing", "detect_outliers"],
                 "description": "Cleaning action to perform.",
-            },
-            "data": {
-                "type": "string",
-                "description": "Input data as CSV string or JSON array string.",
             },
             "file_path": {
                 "type": "string",
-                "description": "Path to CSV or JSON file (alternative to data).",
+                "description": "Path to CSV or JSON data file.",
+            },
+            "operations": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": [
+                        "remove_duplicates",
+                        "trim_whitespace",
+                        "normalize_case",
+                        "fill_nulls",
+                        "remove_empty_rows",
+                    ],
+                },
+                "description": "List of cleaning operations to apply (for clean action).",
             },
             "columns": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "Columns to operate on. If empty, applies to all.",
+                "description": "Columns to operate on (for deduplicate).",
             },
-            "fill_value": {
-                "description": "Value to use for filling missing data.",
-            },
-            "fill_method": {
+            "strategy": {
                 "type": "string",
-                "enum": ["value", "mean", "median", "mode", "ffill", "bfill"],
-                "description": "Method for filling missing values.",
+                "enum": ["mean", "median", "mode", "drop", "value"],
+                "description": "Strategy for fill_missing.",
             },
-            "date_format": {
+            "column": {
                 "type": "string",
-                "description": "Target date format (e.g., '%Y-%m-%d').",
+                "description": "Target column (for fill_missing with specific column, detect_outliers).",
+            },
+            "value": {
+                "description": "Fill value when strategy is 'value'.",
+            },
+            "method": {
+                "type": "string",
+                "enum": ["iqr", "zscore"],
+                "description": "Outlier detection method (default: iqr).",
             },
             "output_path": {
                 "type": "string",
-                "description": "Path to save cleaned data.",
+                "description": "Path to save cleaned output file.",
             },
         },
-        "required": ["action"],
+        "required": ["action", "file_path"],
     }
 
-    def _load_dataframe(self, kwargs: dict):
+    def _load_dataframe(self, file_path: str):
+        """Load data from CSV or JSON file into a pandas DataFrame."""
         import pandas as pd
 
-        if kwargs.get("file_path"):
-            path = kwargs["file_path"]
-            if path.endswith(".json"):
-                return pd.read_json(path)
-            return pd.read_csv(path)
-        elif kwargs.get("data"):
-            data_str = kwargs["data"]
-            try:
-                parsed = json.loads(data_str)
-                if isinstance(parsed, list):
-                    return pd.DataFrame(parsed)
-            except (json.JSONDecodeError, ValueError):
-                pass
-            return pd.read_csv(io.StringIO(data_str))
-        return None
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
 
-    def _save_or_return(self, df, kwargs: dict) -> dict:
-        output_path = kwargs.get("output_path")
-        if output_path:
-            if output_path.endswith(".json"):
-                df.to_json(output_path, orient="records", force_ascii=False, indent=2)
-            else:
-                df.to_csv(output_path, index=False)
-            return {"message": f"Saved to {output_path}", "rows": len(df), "columns": list(df.columns)}
+        if path.suffix.lower() == ".json":
+            return pd.read_json(file_path)
+        elif path.suffix.lower() in (".csv", ".tsv"):
+            sep = "\t" if path.suffix.lower() == ".tsv" else ","
+            return pd.read_csv(file_path, sep=sep)
+        else:
+            # Try CSV as default
+            return pd.read_csv(file_path)
 
-        # Return preview
+    def _save_result(self, df, file_path: str, output_path: str | None) -> dict:
+        """Save DataFrame and return summary."""
+        dest = output_path or file_path
+        path = Path(dest)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        if path.suffix.lower() == ".json":
+            df.to_json(dest, orient="records", force_ascii=False, indent=2)
+        else:
+            df.to_csv(dest, index=False)
+
         preview = df.head(20).to_dict(orient="records")
-        return {"rows": len(df), "columns": list(df.columns), "preview": preview}
+        return {
+            "output_file": dest,
+            "rows": len(df),
+            "columns": list(df.columns),
+            "preview": preview,
+        }
 
     async def execute(self, **kwargs: Any) -> Any:
-        import pandas as pd
-        import numpy as np
+        action = kwargs.get("action", "")
+        file_path = kwargs.get("file_path", "")
+        logger.info("data_cleaning_execute", action=action, file=file_path)
 
-        action = kwargs["action"]
-        df = self._load_dataframe(kwargs)
-        if df is None:
-            return {"error": "Provide data (as string) or file_path."}
+        if not file_path:
+            return _truncate(json.dumps({"error": "'file_path' is required"}))
 
-        columns = kwargs.get("columns")
+        try:
+            import pandas as pd
+            import numpy as np
+        except ImportError as e:
+            return _truncate(json.dumps({"error": f"Required library not available: {e}"}))
 
-        if action == "remove_duplicates":
-            before = len(df)
-            subset = columns if columns else None
-            df = df.drop_duplicates(subset=subset)
-            after = len(df)
-            result = self._save_or_return(df, kwargs)
-            result["duplicates_removed"] = before - after
-            return result
+        try:
+            df = self._load_dataframe(file_path)
+        except FileNotFoundError as e:
+            return _truncate(json.dumps({"error": str(e)}))
+        except Exception as e:
+            return _truncate(json.dumps({"error": f"Failed to load file: {e}"}))
 
-        elif action == "fill_missing":
-            method = kwargs.get("fill_method", "value")
-            cols = columns if columns else df.columns.tolist()
+        output_path = kwargs.get("output_path")
 
-            missing_before = int(df[cols].isna().sum().sum())
+        try:
+            if action == "clean":
+                return await self._clean(df, kwargs, file_path, output_path)
+            elif action == "deduplicate":
+                return await self._deduplicate(df, kwargs, file_path, output_path)
+            elif action == "fill_missing":
+                return await self._fill_missing(df, kwargs, file_path, output_path, pd, np)
+            elif action == "detect_outliers":
+                return await self._detect_outliers(df, kwargs, np)
+            else:
+                return _truncate(json.dumps({"error": f"Unknown action: {action}"}))
+        except Exception as e:
+            logger.error("data_cleaning_failed", action=action, error=str(e))
+            return _truncate(json.dumps({"error": f"Cleaning operation failed: {e}"}))
 
-            if method == "value":
-                fill_val = kwargs.get("fill_value", 0)
-                df[cols] = df[cols].fillna(fill_val)
-            elif method == "mean":
-                numeric = df[cols].select_dtypes(include=[np.number]).columns
-                df[numeric] = df[numeric].fillna(df[numeric].mean())
-            elif method == "median":
-                numeric = df[cols].select_dtypes(include=[np.number]).columns
-                df[numeric] = df[numeric].fillna(df[numeric].median())
-            elif method == "mode":
-                for col in cols:
-                    if not df[col].mode().empty:
-                        df[col] = df[col].fillna(df[col].mode()[0])
-            elif method == "ffill":
-                df[cols] = df[cols].ffill()
-            elif method == "bfill":
-                df[cols] = df[cols].bfill()
+    async def _clean(self, df, kwargs: dict, file_path: str, output_path: str | None) -> str:
+        operations = kwargs.get("operations", [])
+        if not operations:
+            return _truncate(json.dumps({"error": "'operations' list is required for clean action"}))
 
-            missing_after = int(df[cols].isna().sum().sum())
-            result = self._save_or_return(df, kwargs)
-            result["missing_filled"] = missing_before - missing_after
-            return result
+        original_rows = len(df)
+        applied = []
 
-        elif action == "normalize":
-            cols = columns if columns else df.select_dtypes(include=["object"]).columns.tolist()
-            for col in cols:
-                if df[col].dtype == "object":
+        for op in operations:
+            if op == "remove_duplicates":
+                before = len(df)
+                df = df.drop_duplicates()
+                applied.append({"operation": op, "rows_removed": before - len(df)})
+
+            elif op == "trim_whitespace":
+                str_cols = df.select_dtypes(include=["object"]).columns
+                for col in str_cols:
                     df[col] = df[col].str.strip()
+                applied.append({"operation": op, "columns_processed": len(str_cols)})
+
+            elif op == "normalize_case":
+                str_cols = df.select_dtypes(include=["object"]).columns
+                for col in str_cols:
                     df[col] = df[col].str.lower()
-                    # Remove extra whitespace
-                    df[col] = df[col].str.replace(r"\s+", " ", regex=True)
-            result = self._save_or_return(df, kwargs)
-            result["normalized_columns"] = cols
-            return result
+                applied.append({"operation": op, "columns_processed": len(str_cols)})
 
-        elif action == "detect_outliers":
-            cols = columns if columns else df.select_dtypes(include=[np.number]).columns.tolist()
-            outliers_info = {}
+            elif op == "fill_nulls":
+                missing_before = int(df.isna().sum().sum())
+                # Fill numeric with 0, string with empty string
+                for col in df.columns:
+                    if df[col].dtype in ("float64", "int64"):
+                        df[col] = df[col].fillna(0)
+                    else:
+                        df[col] = df[col].fillna("")
+                missing_after = int(df.isna().sum().sum())
+                applied.append({"operation": op, "values_filled": missing_before - missing_after})
+
+            elif op == "remove_empty_rows":
+                before = len(df)
+                df = df.dropna(how="all")
+                applied.append({"operation": op, "rows_removed": before - len(df)})
+
+        result = self._save_result(df, file_path, output_path)
+        result["operations_applied"] = applied
+        result["original_rows"] = original_rows
+        logger.info("data_cleaning_clean", operations=len(applied), rows_before=original_rows, rows_after=len(df))
+        return _truncate(json.dumps(result))
+
+    async def _deduplicate(self, df, kwargs: dict, file_path: str, output_path: str | None) -> str:
+        columns = kwargs.get("columns", [])
+
+        before = len(df)
+        subset = columns if columns else None
+        df = df.drop_duplicates(subset=subset)
+        after = len(df)
+
+        result = self._save_result(df, file_path, output_path)
+        result["duplicates_removed"] = before - after
+        result["original_rows"] = before
+        logger.info("data_cleaning_deduplicate", removed=before - after)
+        return _truncate(json.dumps(result))
+
+    async def _fill_missing(self, df, kwargs: dict, file_path: str, output_path: str | None, pd, np) -> str:
+        strategy = kwargs.get("strategy", "mean")
+        column = kwargs.get("column")
+        fill_value = kwargs.get("value")
+
+        cols = [column] if column else df.columns.tolist()
+        missing_before = int(df[cols].isna().sum().sum())
+
+        if strategy == "mean":
+            numeric = df[cols].select_dtypes(include=[np.number]).columns
+            df[numeric] = df[numeric].fillna(df[numeric].mean())
+
+        elif strategy == "median":
+            numeric = df[cols].select_dtypes(include=[np.number]).columns
+            df[numeric] = df[numeric].fillna(df[numeric].median())
+
+        elif strategy == "mode":
             for col in cols:
-                if col not in df.columns:
-                    continue
-                series = df[col].dropna()
-                if len(series) < 4:
-                    continue
-                q1 = series.quantile(0.25)
-                q3 = series.quantile(0.75)
-                iqr = q3 - q1
-                lower = q1 - 1.5 * iqr
-                upper = q3 + 1.5 * iqr
-                mask = (series < lower) | (series > upper)
-                outlier_indices = series[mask].index.tolist()
-                if outlier_indices:
-                    outliers_info[col] = {
-                        "count": len(outlier_indices),
-                        "lower_bound": round(float(lower), 4),
-                        "upper_bound": round(float(upper), 4),
-                        "outlier_values": [round(float(v), 4) for v in series[mask].tolist()[:20]],
-                    }
-            return {"outliers": outliers_info, "total_rows": len(df)}
+                if col in df.columns and not df[col].mode().empty:
+                    df[col] = df[col].fillna(df[col].mode()[0])
 
-        elif action == "standardize_dates":
-            target_fmt = kwargs.get("date_format", "%Y-%m-%d")
-            cols = columns if columns else []
-            if not cols:
-                return {"error": "Specify columns containing dates."}
+        elif strategy == "drop":
+            df = df.dropna(subset=cols if column else None)
 
-            converted = 0
-            errors_list = []
-            for col in cols:
-                if col not in df.columns:
-                    continue
-                try:
-                    df[col] = pd.to_datetime(df[col], infer_datetime_format=True, errors="coerce")
-                    null_count = int(df[col].isna().sum())
-                    df[col] = df[col].dt.strftime(target_fmt)
-                    converted += 1
-                    if null_count:
-                        errors_list.append(f"{col}: {null_count} unparseable values set to NaT")
-                except Exception as e:
-                    errors_list.append(f"{col}: {e}")
+        elif strategy == "value":
+            if fill_value is None:
+                return _truncate(json.dumps({"error": "'value' is required when strategy is 'value'"}))
+            df[cols] = df[cols].fillna(fill_value)
 
-            result = self._save_or_return(df, kwargs)
-            result["columns_converted"] = converted
-            if errors_list:
-                result["warnings"] = errors_list
-            return result
+        missing_after = int(df[cols].isna().sum().sum()) if strategy != "drop" else 0
 
-        return {"error": f"Unknown action: {action}"}
+        result = self._save_result(df, file_path, output_path)
+        result["strategy"] = strategy
+        result["missing_before"] = missing_before
+        result["missing_after"] = missing_after
+        result["values_handled"] = missing_before - missing_after
+        logger.info("data_cleaning_fill_missing", strategy=strategy, handled=missing_before - missing_after)
+        return _truncate(json.dumps(result))
+
+    async def _detect_outliers(self, df, kwargs: dict, np) -> str:
+        column = kwargs.get("column", "")
+        method = kwargs.get("method", "iqr")
+
+        if not column:
+            return _truncate(json.dumps({"error": "'column' is required for detect_outliers"}))
+
+        if column not in df.columns:
+            return _truncate(json.dumps({"error": f"Column '{column}' not found in data"}))
+
+        series = df[column].dropna()
+        if len(series) < 4:
+            return _truncate(json.dumps({"error": "Not enough data points for outlier detection (minimum 4)"}))
+
+        if method == "iqr":
+            q1 = float(series.quantile(0.25))
+            q3 = float(series.quantile(0.75))
+            iqr = q3 - q1
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+            mask = (series < lower_bound) | (series > upper_bound)
+
+        elif method == "zscore":
+            mean = float(series.mean())
+            std = float(series.std())
+            if std == 0:
+                return _truncate(json.dumps({"error": "Standard deviation is 0, cannot compute z-scores"}))
+            z_scores = (series - mean) / std
+            mask = z_scores.abs() > 3
+            lower_bound = mean - 3 * std
+            upper_bound = mean + 3 * std
+
+        else:
+            return _truncate(json.dumps({"error": f"Unknown method: {method}"}))
+
+        outlier_indices = series[mask].index.tolist()
+        outlier_values = [round(float(v), 4) for v in series[mask].tolist()[:50]]
+
+        result = {
+            "column": column,
+            "method": method,
+            "total_rows": len(series),
+            "outlier_count": len(outlier_indices),
+            "lower_bound": round(lower_bound, 4),
+            "upper_bound": round(upper_bound, 4),
+            "outlier_values": outlier_values,
+            "outlier_indices": outlier_indices[:50],
+            "outlier_percentage": round(len(outlier_indices) / len(series) * 100, 2),
+        }
+
+        logger.info("data_cleaning_outliers", column=column, method=method, count=len(outlier_indices))
+        return _truncate(json.dumps(result))

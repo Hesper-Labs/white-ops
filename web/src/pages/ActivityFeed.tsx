@@ -33,7 +33,7 @@ export default function ActivityFeed() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-lg font-bold text-neutral-900">Activity Feed</h1>
+        <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Activity Feed</h1>
         <p className="text-xs text-neutral-400 mt-0.5">Recent platform events</p>
       </div>
 
@@ -48,7 +48,7 @@ export default function ActivityFeed() {
                   <Icon className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-neutral-700">{activity.text}</p>
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">{activity.text}</p>
                 </div>
                 <span className="text-[11px] text-neutral-400 whitespace-nowrap flex-shrink-0">{formatDate(activity.time)}</span>
               </div>

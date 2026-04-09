@@ -1,7 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -31,22 +31,32 @@ class WorkflowStepCreate(BaseModel):
 
 @router.get("/")
 async def list_workflows(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> list[dict]:
-    result = await db.execute(select(Workflow).order_by(Workflow.created_at.desc()))
+) -> dict:
+    count_result = await db.execute(select(func.count()).select_from(Workflow))
+    total = count_result.scalar() or 0
+
+    result = await db.execute(
+        select(Workflow).order_by(Workflow.created_at.desc()).offset(skip).limit(limit)
+    )
     workflows = result.scalars().all()
-    return [
-        {
-            "id": str(w.id),
-            "name": w.name,
-            "description": w.description,
-            "status": w.status,
-            "is_template": w.is_template,
-            "created_at": str(w.created_at),
-        }
-        for w in workflows
-    ]
+    return {
+        "items": [
+            {
+                "id": str(w.id),
+                "name": w.name,
+                "description": w.description,
+                "status": w.status,
+                "is_template": w.is_template,
+                "created_at": str(w.created_at),
+            }
+            for w in workflows
+        ],
+        "total": total,
+    }
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)

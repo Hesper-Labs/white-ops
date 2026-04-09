@@ -52,7 +52,7 @@ export default function WorkflowBuilder() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <GitBranch className="h-5 w-5 text-neutral-400" />
+          <GitBranch className="h-5 w-5 text-neutral-400 dark:text-neutral-500" />
           <input
             className="text-lg font-bold text-neutral-900 bg-transparent border-none focus:outline-none focus:ring-0 p-0"
             value={name}

@@ -1,26 +1,51 @@
 [project]
 name = "whiteops-server"
-version = "0.1.0"
-description = "White-Ops Core API Server"
+version = "1.0.0"
+description = "White-Ops Enterprise API Server - AI Workforce Platform"
 requires-python = ">=3.12"
 dependencies = [
+    # Web framework
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.12",
+
+    # Database
     "sqlalchemy[asyncio]>=2.0.0",
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
+
+    # Validation
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
+
+    # Authentication & Security
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
-    "python-multipart>=0.0.12",
+    "pyotp>=2.9.0",
+    "cryptography>=43.0.0",
+
+    # Cache & Queue
     "redis>=5.2.0",
-    "minio>=7.2.0",
-    "httpx>=0.28.0",
     "celery[redis]>=5.4.0",
+
+    # Storage
+    "minio>=7.2.0",
+
+    # HTTP Client
+    "httpx>=0.28.0",
+
+    # Monitoring & Logging
     "prometheus-client>=0.21.0",
     "structlog>=24.4.0",
+
+    # Resilience
     "tenacity>=9.0.0",
+
+    # Scheduling
+    "croniter>=3.0.0",
+
+    # Email
+    "aiosmtplib>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +56,8 @@ dev = [
     "httpx>=0.28.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "factory-boy>=3.3.0",
+    "faker>=30.0.0",
 ]
 
 [tool.ruff]
@@ -38,12 +65,23 @@ target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "N", "W", "UP", "S", "B", "A", "C4"]
+ignore = ["S101", "S104", "S603", "S607"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing --cov-report=xml"
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/tests/*", "app/db/migrations/*"]
+
+[tool.coverage.report]
+fail_under = 50
+show_missing = true

@@ -45,11 +45,11 @@ export default function AuditLog() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">Audit Log</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Audit Log</h1>
           <p className="text-xs text-neutral-400 mt-0.5">{logs.length} events recorded</p>
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-neutral-400" />
+          <Filter className="h-4 w-4 text-neutral-400 dark:text-neutral-500" />
           <input className="input w-64" placeholder="Filter by action or resource..." value={filter} onChange={(e) => setFilter(e.target.value)} />
         </div>
       </div>
@@ -67,11 +67,11 @@ export default function AuditLog() {
           </thead>
           <tbody>
             {filtered.map((log: any) => (
-              <tr key={log.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+              <tr key={log.id} className="border-b border-neutral-100 hover:bg-neutral-50 dark:bg-neutral-800/50">
                 <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">{formatDate(log.created_at)}</td>
                 <td className="px-4 py-3"><span className={actionColors[log.action] ?? "badge-gray"}>{log.action}</span></td>
                 <td className="px-4 py-3 text-xs text-neutral-600">{log.resource_type}</td>
-                <td className="px-4 py-3 text-xs text-neutral-500">{log.actor_type}{log.actor_id ? ` (${String(log.actor_id).slice(0, 6)})` : ""}</td>
+                <td className="px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400 dark:text-neutral-500">{log.actor_type}{log.actor_id ? ` (${String(log.actor_id).slice(0, 6)})` : ""}</td>
                 <td className="px-4 py-3 text-xs text-neutral-600 max-w-md truncate">{log.details}</td>
               </tr>
             ))}

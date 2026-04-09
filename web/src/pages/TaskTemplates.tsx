@@ -20,16 +20,16 @@ export default function TaskTemplates() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">Task Templates</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Task Templates</h1>
           <p className="text-xs text-neutral-400 mt-0.5">{DEMO_TEMPLATES.length} templates available</p>
         </div>
         <button className="btn-primary flex items-center gap-1.5"><Plus className="h-3.5 w-3.5" /> New Template</button>
       </div>
 
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setSelectedCategory("")} className={`px-3 py-1.5 rounded-md text-xs font-medium ${!selectedCategory ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 border border-neutral-300 hover:bg-neutral-50"}`}>All</button>
+        <button onClick={() => setSelectedCategory("")} className={`px-3 py-1.5 rounded-md text-xs font-medium ${!selectedCategory ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 border border-neutral-300 hover:bg-neutral-50 dark:bg-neutral-800/50"}`}>All</button>
         {categories.map(c => (
-          <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1.5 rounded-md text-xs font-medium ${selectedCategory === c ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 border border-neutral-300 hover:bg-neutral-50"}`}>{c}</button>
+          <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1.5 rounded-md text-xs font-medium ${selectedCategory === c ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 border border-neutral-300 hover:bg-neutral-50 dark:bg-neutral-800/50"}`}>{c}</button>
         ))}
       </div>
 
@@ -38,8 +38,8 @@ export default function TaskTemplates() {
           <div key={t.id} className="card p-5">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h3 className="text-sm font-semibold text-neutral-900">{t.name}</h3>
-                <span className="text-[11px] text-neutral-400">{t.category}</span>
+                <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">{t.name}</h3>
+                <span className="text-[11px] text-neutral-400 dark:text-neutral-500">{t.category}</span>
               </div>
               <span className={t.priority === "high" ? "badge-red" : t.priority === "medium" ? "badge-yellow" : "badge-gray"}>{t.priority}</span>
             </div>

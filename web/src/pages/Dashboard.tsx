@@ -7,11 +7,11 @@ function StatCard({ title, value, subtitle, icon: Icon }: { title: string; value
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">{title}</span>
-        <Icon className="h-4 w-4 text-neutral-400" />
+        <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">{title}</span>
+        <Icon className="h-4 w-4 text-neutral-400 dark:text-neutral-500 dark:text-neutral-400 dark:text-neutral-500" />
       </div>
-      <p className="text-2xl font-bold text-neutral-900">{value}</p>
-      <p className="text-xs text-neutral-500 mt-1">{subtitle}</p>
+      <p className="text-2xl font-bold text-neutral-900 dark:text-white">{value}</p>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">{subtitle}</p>
     </div>
   );
 }
@@ -45,7 +45,7 @@ export default function Dashboard() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-bold text-neutral-900">Dashboard</h1>
+          <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Dashboard</h1>
           <p className="text-xs text-neutral-400 mt-0.5">Platform overview</p>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-emerald-600">
@@ -86,8 +86,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* Weekly Task Chart */}
         <div className="card lg:col-span-2">
-          <div className="px-5 py-3 border-b border-neutral-200">
-            <h2 className="text-sm font-semibold text-neutral-900">Weekly Task Activity</h2>
+          <div className="px-5 py-3 border-b border-neutral-200 dark:border-neutral-700">
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Weekly Task Activity</h2>
           </div>
           <div className="p-5">
             <ResponsiveContainer width="100%" height={220}>
@@ -105,8 +105,8 @@ export default function Dashboard() {
 
         {/* Task Distribution Pie */}
         <div className="card">
-          <div className="px-5 py-3 border-b border-neutral-200">
-            <h2 className="text-sm font-semibold text-neutral-900">Task Distribution</h2>
+          <div className="px-5 py-3 border-b border-neutral-200 dark:border-neutral-700">
+            <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">Task Distribution</h2>
           </div>
           <div className="p-5 flex flex-col items-center">
             {pieData.length > 0 ? (
@@ -139,15 +139,15 @@ export default function Dashboard() {
 
       {/* System Health */}
       <div className="card">
-        <div className="px-5 py-3 border-b border-neutral-200">
-          <h2 className="text-sm font-semibold text-neutral-900">System Health</h2>
+        <div className="px-5 py-3 border-b border-neutral-200 dark:border-neutral-700">
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">System Health</h2>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-6 divide-x divide-neutral-100">
           {["API Server", "PostgreSQL", "Redis", "MinIO Storage", "Mail Server", "WebSocket"].map((name) => (
             <div key={name} className="flex items-center gap-2.5 px-5 py-3.5">
               <div className="status-dot online" />
               <div>
-                <span className="text-xs font-medium text-neutral-700">{name}</span>
+                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{name}</span>
                 <p className="text-[10px] text-emerald-600">Healthy</p>
               </div>
             </div>

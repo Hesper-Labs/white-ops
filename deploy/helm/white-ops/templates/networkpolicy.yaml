@@ -1,0 +1,158 @@
+{{- if .Values.networkPolicy.enabled }}
+# PostgreSQL: only server and celery-worker can connect
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "white-ops.fullname" . }}-postgres
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: postgres
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: server
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: celery-worker
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: celery-beat
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Redis: only server, worker, celery-worker, celery-beat, and mail can connect
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "white-ops.fullname" . }}-redis
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: redis
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: server
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: worker
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: celery-worker
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: celery-beat
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: mail
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+# Server: allow ingress from web (nginx proxy) and worker
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "white-ops.fullname" . }}-server
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: server
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: web
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: worker
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        # Allow ingress controller traffic
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# Web: allow ingress from external (ingress controller)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "white-ops.fullname" . }}-web
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: web
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+---
+# MinIO: only server and worker can connect
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "white-ops.fullname" . }}-minio
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: minio
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: server
+              app.kubernetes.io/instance: {{ .Release.Name }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: worker
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 9000
+{{- end }}

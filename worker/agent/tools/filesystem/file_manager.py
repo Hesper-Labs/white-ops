@@ -8,6 +8,11 @@ from typing import Any
 
 from agent.tools.base import BaseTool
 
+BLOCKED_PATHS = [
+    '/', '/etc', '/usr', '/bin', '/sbin', '/boot', '/dev', '/proc', '/sys',
+    '/var/run', '/var/log', '/Library', '/System', '/Windows', '/Program Files',
+]
+
 
 class FileManagerTool(BaseTool):
     name = "file_manager"
@@ -30,9 +35,25 @@ class FileManagerTool(BaseTool):
         "required": ["action", "path"],
     }
 
+    def _validate_path(self, path: str) -> None:
+        """Validate that path is safe to access."""
+        resolved = os.path.realpath(os.path.expanduser(path))
+        for blocked in BLOCKED_PATHS:
+            if resolved == blocked or resolved.startswith(blocked + os.sep):
+                raise ValueError(f"Access denied: {blocked} is a restricted path")
+        if '..' in os.path.normpath(path):
+            raise ValueError("Path traversal detected")
+
     async def execute(self, **kwargs: Any) -> Any:
         action = kwargs["action"]
         path = kwargs["path"]
+
+        # Validate primary path for all actions
+        self._validate_path(path)
+
+        # Validate destination path for copy/move/zip actions
+        if action in ("copy", "move", "zip") and kwargs.get("destination"):
+            self._validate_path(kwargs["destination"])
 
         if action == "read":
             with open(path) as f:

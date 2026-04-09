@@ -1,0 +1,58 @@
+groups:
+  - name: whiteops
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate on {{ $labels.instance }}"
+
+      - alert: WorkerOffline
+        expr: up{job="worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Worker {{ $labels.instance }} is down"
+
+      - alert: HighMemory
+        expr: process_resident_memory_bytes > 850000000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 800MB on {{ $labels.instance }}"
+
+      - alert: TaskQueueBacklog
+        expr: celery_active_tasks > 50
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Task queue has 50+ pending tasks"
+
+      - alert: DiskSpaceLow
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space below 20% on {{ $labels.instance }}"
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory above 90%"
+
+      - alert: SlowResponses
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 response time above 2s"
