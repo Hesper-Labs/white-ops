@@ -2,11 +2,11 @@
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 import structlog
-from sqlalchemy import select, func, and_, case
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -334,7 +334,7 @@ class TaskOrchestrator:
             "worker_id": str(worker_id),
             "agents_affected": len(failed_agents),
             "tasks_redistributed": redistributed,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }))
 
         # Attempt immediate reassignment of critical/high priority tasks
@@ -390,7 +390,7 @@ class TaskOrchestrator:
         busy_count = busy_agents.scalar() or 0
 
         # Average tasks per busy agent
-        avg_tasks_result = await db.execute(
+        await db.execute(  # result unused; query warms the planner cache
             select(func.avg(func.count(Task.id)))
             .select_from(Task)
             .where(Task.status.in_(["assigned", "in_progress"]))
@@ -424,7 +424,7 @@ class TaskOrchestrator:
                 "avg_active_tasks_per_agent": round(avg_active, 2),
             },
             "waiting_queue_size": waiting_count,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
 

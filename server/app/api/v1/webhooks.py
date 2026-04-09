@@ -1,17 +1,17 @@
 """Webhook Management API - manage webhook endpoints and delivery history."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_operator
 from app.db.session import get_db
-from app.models.webhook import WebhookEndpoint
 from app.models.user import User
+from app.models.webhook import WebhookEndpoint
 from app.services.audit import log_action
 
 logger = structlog.get_logger()
@@ -244,7 +244,7 @@ async def test_webhook(
     test_payload = {
         "event": "test",
         "webhook_id": str(webhook_id),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "message": "This is a test payload from White-Ops",
     }
 
@@ -267,7 +267,7 @@ async def test_webhook(
             "status_code": response.status_code,
             "success": response.status_code < 400,
             "response_body": response.text[:500],
-            "delivered_at": datetime.now(timezone.utc).isoformat(),
+            "delivered_at": datetime.now(UTC).isoformat(),
         }
 
         # Record in delivery history
@@ -276,7 +276,7 @@ async def test_webhook(
             _delivery_history[wid] = []
         _delivery_history[wid].append(delivery)
 
-        webhook.last_triggered_at = datetime.now(timezone.utc)
+        webhook.last_triggered_at = datetime.now(UTC)
         await db.flush()
 
         logger.info("webhook_test_sent", webhook_id=str(webhook_id), status_code=response.status_code)

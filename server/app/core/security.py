@@ -3,7 +3,7 @@
 import hashlib
 import re
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pyotp
 from jose import jwt
@@ -60,7 +60,7 @@ def validate_password_strength(password: str) -> dict:
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + (
         expires_delta or timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
@@ -89,7 +89,7 @@ def decode_access_token(token: str) -> dict:
 
 def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
     to_encode.update({
         "exp": expire,

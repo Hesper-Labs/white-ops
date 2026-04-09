@@ -1,14 +1,14 @@
 """Authentication dependencies: user retrieval, MFA, lockout, permissions."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as aioredis
 import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -68,7 +68,7 @@ async def _is_token_revoked(token: str) -> bool:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication service temporarily unavailable. Please try again.",
-        )
+        ) from exc
 
 
 async def get_current_user(
@@ -100,7 +100,7 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
-        )
+        ) from None
 
     # Check token revocation
     if await _is_token_revoked(token):
@@ -224,7 +224,7 @@ async def require_mfa_verified(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="MFA verification service temporarily unavailable.",
-            )
+            ) from exc
 
     return user
 
@@ -239,7 +239,7 @@ async def check_account_lockout(email: str, db: AsyncSession) -> bool:
     """
     from app.models.security import LoginAttempt
 
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=LOCKOUT_WINDOW_MINUTES)
+    cutoff = datetime.now(UTC) - timedelta(minutes=LOCKOUT_WINDOW_MINUTES)
     result = await db.execute(
         select(func.count())
         .select_from(LoginAttempt)
@@ -263,7 +263,7 @@ async def record_login_attempt(
         email=email,
         success=success,
         ip_address=ip,
-        attempted_at=datetime.now(timezone.utc),
+        attempted_at=datetime.now(UTC),
     )
     db.add(attempt)
     await db.commit()

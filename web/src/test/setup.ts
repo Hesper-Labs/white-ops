@@ -47,6 +47,8 @@ class ResizeObserverMock {
 
 window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
+import { afterEach } from "vitest";
+
 // Reset localStorage between tests
 afterEach(() => {
   localStorage.clear();

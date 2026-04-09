@@ -88,7 +88,7 @@ class GitOpsTool(BaseTool):
                 return await self._branch_list(path)
             else:
                 return json.dumps({"error": f"Unknown action: {action}"})
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return json.dumps({"error": "Git command timed out after 60 seconds"})
         except FileNotFoundError:
             return json.dumps({"error": "git executable not found"})

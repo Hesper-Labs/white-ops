@@ -1,6 +1,6 @@
-import structlog
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,25 +8,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.auth import get_current_user
 from app.core.security import (
-    verify_password,
-    hash_password,
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
-    verify_totp,
+    hash_password,
     validate_password_strength,
+    verify_password,
+    verify_totp,
 )
 from app.db.session import get_db
+from app.models.security import LoginAttempt, UserMFA
 from app.models.user import User
-from app.models.security import UserMFA, LoginAttempt
 from app.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
-    TokenResponse,
+    LogoutRequest,
     MFARequiredResponse,
     MFAVerifyRequest,
     RefreshRequest,
-    ChangePasswordRequest,
-    LogoutRequest,
+    TokenResponse,
     UserResponse,
 )
 from app.services.audit import log_action
@@ -89,7 +89,7 @@ async def login(
     user = result.scalar_one_or_none()
 
     # --- Account lockout check ---
-    if user and user.locked_until and user.locked_until > datetime.now(timezone.utc):
+    if user and user.locked_until and user.locked_until > datetime.now(UTC):
         logger.warning("login_locked", email=request.email, ip=client_ip)
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
@@ -102,7 +102,7 @@ async def login(
         if user:
             user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
             if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
-                user.locked_until = datetime.now(timezone.utc) + timedelta(
+                user.locked_until = datetime.now(UTC) + timedelta(
                     minutes=LOCKOUT_DURATION_MINUTES
                 )
                 logger.warning("account_locked", email=request.email, ip=client_ip)
@@ -141,7 +141,7 @@ async def login(
     # --- Successful login (no MFA) ---
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     user.last_login_ip = client_ip
     await db.flush()
 
@@ -189,7 +189,7 @@ async def verify_mfa(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired MFA token",
-        )
+        ) from None
 
     if payload.get("purpose") != "mfa":
         raise HTTPException(
@@ -227,7 +227,7 @@ async def verify_mfa(
     # MFA passed - issue real tokens
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     user.last_login_ip = client_ip
     await db.flush()
 
@@ -263,7 +263,7 @@ async def refresh(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
-        )
+        ) from None
 
     user_id = payload.get("sub")
     result = await db.execute(select(User).where(User.id == user_id))
@@ -343,7 +343,7 @@ async def change_password(
     # Update password
     old_hash = user.hashed_password
     user.hashed_password = hash_password(data.new_password)
-    user.password_changed_at = datetime.now(timezone.utc)
+    user.password_changed_at = datetime.now(UTC)
 
     # Append old hash to history (keep last 5)
     history.append(old_hash)

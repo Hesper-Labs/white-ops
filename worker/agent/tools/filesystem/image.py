@@ -1,7 +1,6 @@
 """Image processing tool - resize, crop, watermark, convert, and inspect images."""
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -264,10 +263,10 @@ class ImageTool(BaseTool):
         font_size = max(img.width // 30, 16)
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
-        except (OSError, IOError):
+        except OSError:
             try:
                 font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
-            except (OSError, IOError):
+            except OSError:
                 font = ImageFont.load_default()
 
         # Calculate text bounding box

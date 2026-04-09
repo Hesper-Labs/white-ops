@@ -1,13 +1,12 @@
 """Chat API router for the Agent Chat interface."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.auth import get_current_user
 from app.db.session import get_db
@@ -172,7 +171,7 @@ async def send_message(
     if not conversation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Store user message
     user_msg = ChatMessage(
@@ -186,7 +185,7 @@ async def send_message(
     assistant_msg = ChatMessage(
         conversation_id=conversation_id,
         role="assistant",
-        content=f"I've received your message. This is a placeholder response from the agent. In production, this would be processed by the assigned LLM.",
+        content="I've received your message. This is a placeholder response from the agent. In production, this would be processed by the assigned LLM.",
         tokens_used=150,
         cost_usd=0.002,
     )

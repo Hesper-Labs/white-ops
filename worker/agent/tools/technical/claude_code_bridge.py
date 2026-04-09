@@ -316,7 +316,7 @@ class ClaudeCodeBridgeTool(BaseTool):
                 stdout_raw, stderr_raw = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 log.warning("claude_code.timeout", timeout=timeout)
                 try:
                     proc.kill()  # type: ignore[union-attr]

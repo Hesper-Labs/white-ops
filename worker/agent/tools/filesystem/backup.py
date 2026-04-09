@@ -2,7 +2,6 @@
 
 import json
 import os
-import shutil
 import tarfile
 from datetime import datetime
 from pathlib import Path
@@ -176,7 +175,7 @@ class BackupTool(BaseTool):
                 "timestamp": timestamp,
                 "compressed": compress,
             }))
-        except Exception as e:
+        except Exception:
             metadata_file.unlink(missing_ok=True)
             raise
 

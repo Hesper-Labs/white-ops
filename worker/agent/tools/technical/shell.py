@@ -159,7 +159,7 @@ class ShellTool(BaseTool):
                 "stdout_truncated": stdout_truncated,
                 "stderr_truncated": stderr_truncated,
             })
-        except asyncio.TimeoutError:
+        except TimeoutError:
             try:
                 proc.kill()
             except ProcessLookupError:

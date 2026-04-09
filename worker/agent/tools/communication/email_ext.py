@@ -1,10 +1,10 @@
 """External email tool - send and receive emails via SMTP/IMAP."""
 
 import json
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
 from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +48,7 @@ class ExternalEmailTool(BaseTool):
 
     async def _send(self, kwargs: dict) -> str:
         import aiosmtplib
+
         from agent.config import settings
 
         smtp_host = settings.mail_server_host  # Will use external SMTP when configured

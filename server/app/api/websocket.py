@@ -4,8 +4,8 @@ import json
 from collections.abc import MutableSet
 from enum import Enum
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import structlog
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 logger = structlog.get_logger()
 router = APIRouter()

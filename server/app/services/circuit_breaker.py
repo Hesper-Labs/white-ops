@@ -1,8 +1,7 @@
 """Circuit breaker service - distributed circuit breaker pattern using Redis."""
 
-import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 import structlog
@@ -179,7 +178,7 @@ class CircuitBreakerService:
             "total_successes": total_successes,
             "total_failures": total_failures,
             "success_rate": round(success_rate, 2),
-            "last_failure": datetime.fromtimestamp(float(last_failure_ts), tz=timezone.utc).isoformat()
+            "last_failure": datetime.fromtimestamp(float(last_failure_ts), tz=UTC).isoformat()
             if last_failure_ts else None,
         }
 

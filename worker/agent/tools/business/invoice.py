@@ -1,8 +1,8 @@
 """Invoice tool - create professional invoices."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
-from datetime import datetime
 
 from agent.tools.base import BaseTool
 
@@ -40,11 +40,11 @@ class InvoiceTool(BaseTool):
     }
 
     async def execute(self, **kwargs: Any) -> Any:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_RIGHT
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
         output = kwargs["output_path"]
         Path(output).parent.mkdir(parents=True, exist_ok=True)

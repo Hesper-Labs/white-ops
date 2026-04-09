@@ -2,7 +2,7 @@
 
 import asyncio
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
@@ -100,7 +100,7 @@ class TaskExecutor:
                 json={
                     "status": "completed",
                     "result": result,
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "completed_at": datetime.now(UTC).isoformat(),
                 },
             )
             logger.info("task_completed", task_id=task_id)
@@ -114,7 +114,7 @@ class TaskExecutor:
                 json={
                     "status": "failed",
                     "error": error_msg,
-                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "completed_at": datetime.now(UTC).isoformat(),
                 },
             )
 
@@ -202,7 +202,7 @@ class TaskExecutor:
                     timeout=timeout,
                 )
                 return _truncate_output(str(result))
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("tool_timeout", tool=tool_name, timeout=timeout, attempt=attempt + 1)
                 last_error = f"Tool '{tool_name}' timed out after {timeout}s"
                 if attempt < max_retries:

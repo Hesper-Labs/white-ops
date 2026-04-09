@@ -1,20 +1,19 @@
 """Analytics API - performance metrics, cost tracking, and reporting."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.db.session import get_db
 from app.models.agent import Agent
-from app.models.task import Task
-from app.models.worker import Worker
-from app.models.message import Message
 from app.models.file import File
-from app.models.settings import AgentPerformance
+from app.models.message import Message
+from app.models.task import Task
 from app.models.user import User
+from app.models.worker import Worker
 
 router = APIRouter()
 
@@ -26,7 +25,7 @@ async def analytics_overview(
     days: int = 7,
 ) -> dict:
     """Get platform analytics for the given period."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
 
     # Tasks
     total_tasks = await db.execute(
@@ -127,7 +126,7 @@ async def task_timeline(
     days: int = 30,
 ) -> list[dict]:
     """Get task creation timeline for charting."""
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
 
     result = await db.execute(
         select(

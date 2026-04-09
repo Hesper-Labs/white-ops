@@ -2,14 +2,14 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import redis
 import structlog
 from celery import Celery
 from celery.schedules import crontab
 from minio import Minio
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 
 from app.config import settings
 
@@ -84,8 +84,8 @@ def _get_sync_db_session():
 
     sync_url = settings.database_url.replace("+asyncpg", "+psycopg2")
     engine = create_engine(sync_url, pool_pre_ping=True, pool_size=5)
-    Session = sessionmaker(bind=engine)
-    return Session()
+    session_factory = sessionmaker(bind=engine)
+    return session_factory()
 
 
 def _get_minio_client() -> Minio:
@@ -106,8 +106,8 @@ def execute_task(self, task_id: str, agent_id: str) -> dict:
 
     db = _get_sync_db_session()
     try:
-        from app.models.task import Task
         from app.models.agent import Agent
+        from app.models.task import Task
 
         task = db.execute(
             select(Task).where(Task.id == uuid.UUID(task_id))
@@ -131,7 +131,7 @@ def execute_task(self, task_id: str, agent_id: str) -> dict:
 
         # Update task status to in_progress
         task.status = "in_progress"
-        task.started_at = datetime.now(timezone.utc)
+        task.started_at = datetime.now(UTC)
         db.commit()
 
         # Publish task assignment to the worker's Redis channel
@@ -202,7 +202,7 @@ def execute_task(self, task_id: str, agent_id: str) -> dict:
                     "task_id": task_id,
                     "agent_id": agent_id,
                     "error": str(exc),
-                    "failed_at": datetime.now(timezone.utc).isoformat(),
+                    "failed_at": datetime.now(UTC).isoformat(),
                 }))
             except Exception:
                 pass
@@ -232,7 +232,7 @@ def scheduled_task(self, schedule_id: str) -> dict:
 
         # Create a new task instance from the template
         new_task = Task(
-            title=f"{template.title} (scheduled {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')})",
+            title=f"{template.title} (scheduled {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')})",
             description=template.description,
             instructions=template.instructions,
             status="pending",
@@ -241,7 +241,7 @@ def scheduled_task(self, schedule_id: str) -> dict:
             max_retries=template.max_retries,
             workflow_id=template.workflow_id,
             parent_task_id=template.id,
-            metadata_={"scheduled_from": schedule_id, "scheduled_at": datetime.now(timezone.utc).isoformat()},
+            metadata_={"scheduled_from": schedule_id, "scheduled_at": datetime.now(UTC).isoformat()},
         )
         db.add(new_task)
         db.flush()
@@ -283,7 +283,7 @@ def cleanup_old_files(self, days: int = 30) -> dict:
     log = logger.bind(days=days)
     log.info("cleanup_old_files_started")
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
     deleted_count = 0
     errors = []
 
@@ -360,11 +360,11 @@ def generate_analytics_snapshot(self) -> dict:
 
     db = _get_sync_db_session()
     try:
-        from app.models.task import Task
         from app.models.agent import Agent
+        from app.models.task import Task
         from app.models.worker import Worker
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         hour_ago = now - timedelta(hours=1)
         day_ago = now - timedelta(days=1)
 
@@ -492,11 +492,11 @@ def check_worker_health(self) -> dict:
 
     db = _get_sync_db_session()
     try:
-        from app.models.worker import Worker
         from app.models.agent import Agent
         from app.models.task import Task
+        from app.models.worker import Worker
 
-        stale_threshold = datetime.now(timezone.utc) - timedelta(seconds=90)
+        stale_threshold = datetime.now(UTC) - timedelta(seconds=90)
 
         # Find workers that are online but have stale heartbeats
         stale_workers = db.execute(
@@ -550,7 +550,7 @@ def check_worker_health(self) -> dict:
             r.publish("whiteops:events:worker_health", json.dumps({
                 "workers_marked_offline": marked_offline,
                 "tasks_requeued": tasks_requeued,
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
             }))
 
         log.info("check_worker_health_completed",

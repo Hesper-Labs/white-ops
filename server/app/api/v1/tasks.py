@@ -1,15 +1,15 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_operator
 from app.db.session import get_db
 from app.models.task import Task
 from app.models.user import User
-from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
+from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 
 router = APIRouter()
 
@@ -144,7 +144,7 @@ async def cancel_task(
     if task.status in ("completed", "cancelled"):
         raise HTTPException(status_code=400, detail=f"Cannot cancel task in {task.status} state")
     task.status = "cancelled"
-    task.completed_at = datetime.now(timezone.utc)
+    task.completed_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(task)
     return task

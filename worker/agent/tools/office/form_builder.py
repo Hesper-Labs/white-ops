@@ -70,9 +70,9 @@ class FormBuilderTool(BaseTool):
     def _load_forms(self) -> dict:
         if os.path.isfile(FORMS_FILE):
             try:
-                with open(FORMS_FILE, "r") as f:
+                with open(FORMS_FILE) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 pass
         return {"forms": {}, "responses": {}}
 

@@ -162,8 +162,9 @@ class NotificationTool(BaseTool):
         message = kwargs.get("message", "")
         priority = kwargs.get("priority", "normal")
 
-        import aiosmtplib
         from email.message import EmailMessage
+
+        import aiosmtplib
 
         msg = EmailMessage()
         msg["Subject"] = f"[{priority.upper()}] {title}"

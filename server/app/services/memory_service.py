@@ -1,10 +1,9 @@
 """Agent memory service - persistent memory storage with search, pruning, and stats."""
 
 import uuid
-from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import select, func, delete, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.memory import Memory

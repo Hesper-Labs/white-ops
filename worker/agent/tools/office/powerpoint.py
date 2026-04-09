@@ -6,7 +6,6 @@ from typing import Any
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
 
 from agent.tools.base import BaseTool
 
@@ -90,7 +89,6 @@ class PowerPointTool(BaseTool):
             layout = prs.slide_layouts[5]  # blank
             slide = prs.slides.add_slide(layout)
             if kwargs.get("title"):
-                from pptx.util import Emu
                 txBox = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(1))
                 txBox.text_frame.text = kwargs["title"]
                 txBox.text_frame.paragraphs[0].font.size = Pt(28)
@@ -111,6 +109,6 @@ class PowerPointTool(BaseTool):
                     for j, cell in enumerate(row):
                         table.cell(i, j).text = str(cell)
             prs.save(filepath)
-            return f"Added table slide"
+            return "Added table slide"
 
         return f"Unknown action: {action}"

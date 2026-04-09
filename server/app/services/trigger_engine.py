@@ -3,10 +3,10 @@
 import json
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.trigger import Trigger, TriggerExecution
@@ -107,7 +107,7 @@ class TriggerEngine:
             duration_ms = (time.monotonic() - start) * 1000
 
             # Update trigger metadata
-            trigger.last_fired_at = datetime.now(timezone.utc)
+            trigger.last_fired_at = datetime.now(UTC)
             trigger.fire_count += 1
             await db.flush()
 
@@ -273,7 +273,7 @@ class TriggerEngine:
         triggers = list(result.scalars().all())
         fired = []
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for trigger in triggers:
             config = trigger.config or {}
@@ -289,7 +289,7 @@ class TriggerEngine:
 
                 # Make next_fire timezone-aware if it isn't already
                 if next_fire.tzinfo is None:
-                    next_fire = next_fire.replace(tzinfo=timezone.utc)
+                    next_fire = next_fire.replace(tzinfo=UTC)
 
                 if next_fire <= now:
                     exec_result = await self.execute_trigger(

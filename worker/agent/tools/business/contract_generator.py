@@ -71,12 +71,11 @@ class ContractGeneratorTool(BaseTool):
     }
 
     async def execute(self, **kwargs: Any) -> Any:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
         output_path = kwargs["output_path"]
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)

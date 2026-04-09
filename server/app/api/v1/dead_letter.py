@@ -1,11 +1,10 @@
 """Dead Letter Queue API - manage failed tasks for retry or discard."""
 
 import uuid
-from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_admin, require_operator

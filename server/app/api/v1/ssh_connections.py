@@ -1,11 +1,10 @@
 """SSH Connection Management API - manage SSH connections for agent access."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_operator
@@ -63,8 +62,8 @@ async def create_ssh_connection(
         "tags": data.get("tags", []),
         "status": "untested",
         "created_by": str(user.id),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
     }
     _ssh_connections[conn_id] = connection
 
@@ -115,7 +114,7 @@ async def update_ssh_connection(
     for field in updatable:
         if field in data:
             conn[field] = data[field]
-    conn["updated_at"] = datetime.now(timezone.utc).isoformat()
+    conn["updated_at"] = datetime.now(UTC).isoformat()
 
     await log_action(
         db,
@@ -188,7 +187,7 @@ async def test_ssh_connection(
             output = result.stdout.strip()
 
         conn["status"] = "connected"
-        conn["last_tested_at"] = datetime.now(timezone.utc).isoformat()
+        conn["last_tested_at"] = datetime.now(UTC).isoformat()
         logger.info("ssh_connection_test_success", connection_id=connection_id)
         return {"status": "success", "message": "Connection successful", "output": output}
 
@@ -200,7 +199,7 @@ async def test_ssh_connection(
 
     except Exception as exc:
         conn["status"] = "failed"
-        conn["last_tested_at"] = datetime.now(timezone.utc).isoformat()
+        conn["last_tested_at"] = datetime.now(UTC).isoformat()
         logger.error("ssh_connection_test_failed", connection_id=connection_id, error=str(exc))
         return {"status": "failed", "message": str(exc)}
 

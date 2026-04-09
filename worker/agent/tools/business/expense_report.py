@@ -148,10 +148,10 @@ class ExpenseReportTool(BaseTool):
             if not output_path:
                 return {"error": "output_path is required for generate_report."}
 
-            from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-            from reportlab.lib.styles import getSampleStyleSheet
             from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
             filtered = self._filter(expenses, kwargs)
 

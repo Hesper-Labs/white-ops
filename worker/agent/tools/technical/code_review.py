@@ -78,7 +78,7 @@ class CodeReviewTool(BaseTool):
         if file_path:
             if not os.path.isfile(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(file_path, encoding="utf-8", errors="replace") as f:
                 code = f.read()
             language = kwargs.get("language") or self._detect_language(file_path)
         else:

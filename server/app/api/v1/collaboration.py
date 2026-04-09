@@ -1,6 +1,7 @@
 """Agent Collaboration API - multi-agent collaboration sessions."""
 
 import uuid
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -124,13 +125,13 @@ async def add_message(
     if not c:
         raise HTTPException(status_code=404, detail="Collaboration not found")
 
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     msg = {
         "agent_id": data.agent_id,
         "message": data.message,
         "type": data.message_type,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     messages = list(c.messages) if c.messages else []
     messages.append(msg)

@@ -1,11 +1,11 @@
 import structlog
 from sqlalchemy import select
 
+from app.config import settings
+from app.core.security import hash_password
 from app.db.session import async_session, engine
 from app.models.base import Base
 from app.models.user import User
-from app.core.security import hash_password
-from app.config import settings
 
 logger = structlog.get_logger()
 

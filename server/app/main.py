@@ -2,8 +2,8 @@
 
 import asyncio
 import signal
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -13,23 +13,45 @@ from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.config import settings as app_settings
-from app.core.logging import setup_logging
-from app.core.middleware import setup_middleware
-from app.core.errors import AppException, ErrorCode
-from app.db.session import engine
-from app.db.init_db import init_db
 from app.api.v1 import (
-    auth, agents, tasks, workflows, admin, files, messages,
-    dashboard, settings, workers, knowledge, collaboration, analytics,
-    schedules, exports, chat,
-    # Enterprise modules
-    security, secrets, ssh_connections, approvals, memories,
-    dead_letter, cost, triggers, notifications, webhooks, circuit_breakers,
+    admin,
+    agents,
+    analytics,
+    approvals,
+    auth,
+    chat,
+    circuit_breakers,
     code_reviews,
+    collaboration,
+    cost,
+    dashboard,
+    dead_letter,
+    exports,
+    files,
+    knowledge,
     marketplace,
+    memories,
+    messages,
+    notifications,
+    schedules,
+    secrets,
+    # Enterprise modules
+    security,
+    settings,
+    ssh_connections,
+    tasks,
+    triggers,
+    webhooks,
+    workers,
+    workflows,
 )
 from app.api.websocket import router as ws_router
+from app.config import settings as app_settings
+from app.core.errors import AppException, ErrorCode
+from app.core.logging import setup_logging
+from app.core.middleware import setup_middleware
+from app.db.init_db import init_db
+from app.db.session import engine
 
 logger = structlog.get_logger()
 
@@ -255,8 +277,9 @@ async def readiness_check() -> JSONResponse:
 
     # Check database
     try:
-        from app.db.session import async_session_maker
         from sqlalchemy import text
+
+        from app.db.session import async_session_maker
         async with async_session_maker() as session:
             await session.execute(text("SELECT 1"))
         checks["database"] = "ok"

@@ -115,7 +115,7 @@ class DockerOpsTool(BaseTool):
                 return json.dumps({"error": f"Unknown action: {action}"})
         except PermissionError as e:
             return json.dumps({"error": str(e)})
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("docker_timeout", action=action)
             return json.dumps({"error": f"Docker command timed out after {COMMAND_TIMEOUT}s"})
         except FileNotFoundError:

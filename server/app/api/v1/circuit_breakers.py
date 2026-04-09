@@ -93,7 +93,7 @@ async def get_circuit_breaker_state(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to retrieve circuit breaker state",
-        )
+        ) from exc
 
 
 @router.post("/{service_name}/force-open")
@@ -115,7 +115,7 @@ async def force_open_circuit(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to force open circuit breaker",
-        )
+        ) from exc
 
 
 @router.post("/{service_name}/force-close")
@@ -137,7 +137,7 @@ async def force_close_circuit(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to force close circuit breaker",
-        )
+        ) from exc
 
 
 @router.post("/{service_name}/reset")
@@ -159,4 +159,4 @@ async def reset_circuit_breaker(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to reset circuit breaker",
-        )
+        ) from exc

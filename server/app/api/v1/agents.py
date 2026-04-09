@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.auth import get_current_user, require_operator
 from app.db.session import get_db
 from app.models.agent import Agent
 from app.models.user import User
-from app.schemas.agent import AgentCreate, AgentUpdate, AgentResponse
-from app.config import settings
+from app.schemas.agent import AgentCreate, AgentResponse, AgentUpdate
 
 router = APIRouter()
 

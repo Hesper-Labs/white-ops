@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import require_admin
 from app.core.security import hash_password
 from app.db.session import get_db
+from app.models.audit import AuditLog
 from app.models.user import User
 from app.models.worker import Worker
-from app.models.audit import AuditLog
 
 router = APIRouter()
 

@@ -51,8 +51,8 @@ describe("authStore", () => {
 
     vi.mocked(authApi.login).mockResolvedValueOnce({
       data: { access_token: mockToken },
-    });
-    vi.mocked(authApi.me).mockResolvedValueOnce({ data: mockUser });
+    } as never);
+    vi.mocked(authApi.me).mockResolvedValueOnce({ data: mockUser } as never);
 
     await useAuthStore.getState().login("admin@test.com", "password123");
 

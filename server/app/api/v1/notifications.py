@@ -1,11 +1,11 @@
 """Notification System API - manage notifications, channels, and routing rules."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_admin
@@ -126,7 +126,7 @@ async def mark_all_as_read(
     )
     notifications = list(result.scalars().all())
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     count = 0
     for n in notifications:
         n.is_read = True
@@ -175,7 +175,7 @@ async def add_channel(
         "config": data.get("config", {}),
         "is_active": True,
         "created_by": str(user.id),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     _channels[channel_id] = channel
     logger.info("notification_channel_added", channel_id=channel_id, type=channel["type"])
@@ -198,7 +198,7 @@ async def update_channel(
         if field in data:
             channel[field] = data[field]
 
-    channel["updated_at"] = datetime.now(timezone.utc).isoformat()
+    channel["updated_at"] = datetime.now(UTC).isoformat()
     logger.info("notification_channel_updated", channel_id=channel_id)
     return channel
 

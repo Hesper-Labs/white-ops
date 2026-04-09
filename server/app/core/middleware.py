@@ -1,8 +1,9 @@
 """Production middleware: Redis rate limiting, request logging, security headers, error handling."""
 
+import collections
+import threading
 import time
 import uuid
-from datetime import datetime, timezone
 
 import redis.asyncio as aioredis
 import structlog
@@ -30,11 +31,6 @@ ENDPOINT_RATE_LIMITS: dict[str, tuple[int, int]] = {
 }
 
 SKIP_PATHS = frozenset(("/health", "/docs", "/openapi.json", "/redoc"))
-
-# ---- In-Memory Rate Limiter (fallback when Redis is unavailable) ----
-
-import collections
-import threading
 
 _memory_rate_store: dict[str, collections.deque] = {}
 _memory_rate_lock = threading.Lock()

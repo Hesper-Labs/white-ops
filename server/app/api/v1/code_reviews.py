@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -150,7 +150,7 @@ async def approve_code_review(
 
     review.status = "approved"
     review.reviewer_id = user.id
-    review.reviewed_at = datetime.now(timezone.utc)
+    review.reviewed_at = datetime.now(UTC)
     await db.commit()
     return {"id": str(review.id), "status": "approved"}
 
@@ -174,7 +174,7 @@ async def reject_code_review(
 
     review.status = "rejected"
     review.reviewer_id = user.id
-    review.reviewed_at = datetime.now(timezone.utc)
+    review.reviewed_at = datetime.now(UTC)
     review.review_comment = data.reason
     await db.commit()
     return {"id": str(review.id), "status": "rejected"}
@@ -205,7 +205,7 @@ async def add_comment(
         "content": data.content,
         "file_path": data.file_path,
         "line_number": data.line_number,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     })
     review.comments = comments
     await db.commit()

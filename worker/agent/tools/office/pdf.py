@@ -4,12 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pypdf import PdfReader, PdfWriter, PdfMerger
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
+from pypdf import PdfMerger, PdfReader, PdfWriter
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from agent.tools.base import BaseTool
 

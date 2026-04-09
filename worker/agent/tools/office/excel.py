@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any
 
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from agent.tools.base import BaseTool

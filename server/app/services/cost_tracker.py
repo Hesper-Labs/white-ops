@@ -1,13 +1,13 @@
 """Cost tracking service - record LLM usage, compute costs, budget management, and forecasting."""
 
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import select, func, and_, cast, Date
+from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.cost import CostRecord, Budget
+from app.models.cost import Budget, CostRecord
 
 logger = structlog.get_logger()
 
@@ -122,7 +122,7 @@ class CostTracker:
         days: int = 30,
     ) -> list[dict]:
         """Get daily cost breakdown for the last N days."""
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         result = await db.execute(
             select(
@@ -162,7 +162,7 @@ class CostTracker:
         period_days: int = 30,
     ) -> list[dict]:
         """Get cost breakdown by agent."""
-        since = datetime.now(timezone.utc) - timedelta(days=period_days)
+        since = datetime.now(UTC) - timedelta(days=period_days)
 
         query = (
             select(
@@ -205,7 +205,7 @@ class CostTracker:
         budget = result.scalar_one_or_none()
 
         # Calculate current month's spending
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         spend_result = await db.execute(
@@ -268,7 +268,7 @@ class CostTracker:
 
     async def get_cost_forecast(self, db: AsyncSession, days: int = 30) -> dict:
         """Predict future costs based on recent daily averages."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         since = now - timedelta(days=days)
 
         # Daily cost averages
@@ -326,7 +326,7 @@ class CostTracker:
         period_days: int = 30,
     ) -> list[dict]:
         """Get cost breakdown by provider and model."""
-        since = datetime.now(timezone.utc) - timedelta(days=period_days)
+        since = datetime.now(UTC) - timedelta(days=period_days)
 
         result = await db.execute(
             select(

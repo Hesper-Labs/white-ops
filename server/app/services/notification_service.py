@@ -4,11 +4,11 @@ import hashlib
 import hmac
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import structlog
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification, NotificationRule, UserNotificationPreference
@@ -101,8 +101,9 @@ class NotificationService:
             return
 
         try:
-            import aiosmtplib
             from email.message import EmailMessage
+
+            import aiosmtplib
 
             from app.config import settings
 
@@ -304,7 +305,7 @@ class NotificationService:
             return False
 
         notification.is_read = True
-        notification.read_at = datetime.now(timezone.utc)
+        notification.read_at = datetime.now(UTC)
         await db.flush()
         return True
 

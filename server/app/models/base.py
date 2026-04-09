@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, and_, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -30,5 +30,5 @@ class Base(DeclarativeBase):
 
     def soft_delete(self) -> None:
         """Mark this record as soft-deleted."""
-        self.deleted_at = datetime.now(timezone.utc)
+        self.deleted_at = datetime.now(UTC)
         self.is_deleted = True

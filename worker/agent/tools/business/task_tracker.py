@@ -84,9 +84,9 @@ class TaskTrackerTool(BaseTool):
     def _load_data(self) -> dict:
         if os.path.isfile(TRACKER_FILE):
             try:
-                with open(TRACKER_FILE, "r") as f:
+                with open(TRACKER_FILE) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 pass
         return {"tasks": {}}
 

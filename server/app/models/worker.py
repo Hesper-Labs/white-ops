@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Index, String, Integer, Boolean, DateTime, Float, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

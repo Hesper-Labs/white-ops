@@ -63,7 +63,7 @@ async def create_secret(
             expires_at=expires_at,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     logger.info("secret_created", secret_id=str(secret.id), name=name, user_id=str(user.id))
     return {
@@ -85,7 +85,7 @@ async def get_secret(
     try:
         result = await vault_service.get_secret(db, secret_id, audit_user_id=user.id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     logger.info("secret_accessed", secret_id=str(secret_id), user_id=str(user.id))
     return result
@@ -114,7 +114,7 @@ async def update_secret(
             rotated_by=user.id,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     logger.info("secret_rotated", secret_id=str(secret_id), version=secret.version)
     return {

@@ -3,14 +3,10 @@
   "configurations": [
     {
       "name": "web",
-      "runtimeExecutable": "/Users/hesperus/.local/nodejs/bin/node",
-      "runtimeArgs": ["node_modules/.bin/vite", "--host", "0.0.0.0", "--port", "${PORT}"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "0.0.0.0"],
       "port": 3000,
-      "autoPort": true,
-      "cwd": "web",
-      "env": {
-        "PATH": "/Users/hesperus/.local/nodejs/bin:/usr/bin:/bin"
-      }
+      "cwd": "web"
     }
   ]
 }

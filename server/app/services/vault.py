@@ -2,7 +2,7 @@
 
 import os
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from cryptography.fernet import Fernet, InvalidToken
@@ -26,7 +26,8 @@ class VaultService:
             if app_env in ("production", "staging"):
                 raise RuntimeError(
                     "VAULT_MASTER_KEY is required in production/staging. "
-                    "Generate one with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+                    "Generate with: python -c 'from cryptography.fernet "
+                    "import Fernet; print(Fernet.generate_key().decode())'"
                 )
             master_key = Fernet.generate_key().decode()
             logger.warning(
@@ -55,7 +56,9 @@ class VaultService:
             return self._fernet.decrypt(ciphertext.encode()).decode()
         except InvalidToken:
             logger.error("vault_decrypt_failed", msg="Invalid token or wrong key")
-            raise ValueError("Failed to decrypt secret - invalid token or wrong master key")
+            raise ValueError(
+                "Failed to decrypt secret - invalid token or wrong master key"
+            ) from None
         except Exception as exc:
             logger.error("vault_decrypt_error", error=str(exc), error_type=type(exc).__name__)
             raise ValueError(f"Failed to decrypt secret: {exc}") from exc
@@ -202,7 +205,7 @@ class VaultService:
 
         secret.encrypted_value = self.encrypt(new_value)
         secret.version += 1
-        secret.rotated_at = datetime.now(timezone.utc)
+        secret.rotated_at = datetime.now(UTC)
         secret.rotated_by = rotated_by
         await db.flush()
 
@@ -251,7 +254,7 @@ class VaultService:
         days: int = 7,
     ) -> list[dict]:
         """Find secrets that will expire within the given number of days."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         threshold = now + timedelta(days=days)
 
         result = await db.execute(

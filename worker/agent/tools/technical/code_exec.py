@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import re
 import tempfile
 from pathlib import Path
@@ -163,7 +162,7 @@ exec(open({user_path!r}).read())
                 "stderr": stderr.decode(errors="replace")[:MAX_OUTPUT_BYTES // 2],
             })
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return json.dumps({"error": f"Execution timed out after {timeout}s"})
         finally:
@@ -193,6 +192,6 @@ exec(open({user_path!r}).read())
                 "stderr": stderr.decode(errors="replace")[:MAX_OUTPUT_BYTES // 2],
             })
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return json.dumps({"error": f"Execution timed out after {timeout}s"})

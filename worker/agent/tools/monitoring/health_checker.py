@@ -4,7 +4,7 @@ import asyncio
 import json
 import ssl
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -173,7 +173,7 @@ class HealthCheckerTool(BaseTool):
             logger.info("health_tcp_check", host=host, port=port, healthy=True)
             return json.dumps(result)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed_ms = round((time.monotonic() - start) * 1000, 2)
             return json.dumps({
                 "host": host,
@@ -287,8 +287,8 @@ class HealthCheckerTool(BaseTool):
             if not_after:
                 try:
                     expiry_dt = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z")
-                    expiry_dt = expiry_dt.replace(tzinfo=timezone.utc)
-                    delta = expiry_dt - datetime.now(timezone.utc)
+                    expiry_dt = expiry_dt.replace(tzinfo=UTC)
+                    delta = expiry_dt - datetime.now(UTC)
                     expiry_days = delta.days
                 except ValueError:
                     pass
@@ -320,7 +320,7 @@ class HealthCheckerTool(BaseTool):
                 "status": "unhealthy",
                 "error": f"SSL verification failed: {e}",
             })
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return json.dumps({
                 "hostname": hostname,
                 "port": port,

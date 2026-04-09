@@ -1,18 +1,15 @@
 """Export/Import API - backup and restore system configuration."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, UploadFile
-from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import require_admin
 from app.db.session import get_db
 from app.models.agent import Agent
-from app.models.task import Task
-from app.models.workflow import Workflow
 from app.models.settings import KnowledgeBase, SystemSettings
 from app.models.user import User
 
@@ -29,7 +26,7 @@ async def export_agents(
     agents = result.scalars().all()
     return {
         "export_type": "agents",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "count": len(agents),
         "data": [
             {
@@ -59,7 +56,7 @@ async def export_settings(
     settings = result.scalars().all()
     return {
         "export_type": "settings",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "count": len(settings),
         "data": [
             {
@@ -82,7 +79,7 @@ async def export_knowledge(
     entries = result.scalars().all()
     return {
         "export_type": "knowledge",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "count": len(entries),
         "data": [
             {
@@ -108,7 +105,7 @@ async def export_full(
     knowledge = await export_knowledge(db=db, user=user)
     return {
         "export_type": "full",
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "agents": agents["data"],
         "settings": settings["data"],
         "knowledge": knowledge["data"],

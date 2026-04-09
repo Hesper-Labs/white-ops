@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import require_admin
@@ -186,6 +186,7 @@ async def system_health(
 ) -> dict:
     """Check system component health."""
     import redis as redis_lib
+
     from app.config import settings
 
     health = {}

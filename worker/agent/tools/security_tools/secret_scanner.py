@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
@@ -318,7 +317,7 @@ class SecretScannerTool(BaseTool):
             commits = stdout.decode().strip().split("\n")
             commits = [c.strip() for c in commits if c.strip()]
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return json.dumps({"error": "git log timed out"})
         except FileNotFoundError:
             return json.dumps({"error": "git executable not found"})
@@ -376,7 +375,7 @@ class SecretScannerTool(BaseTool):
                             continue
 
                 commits_scanned += 1
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except Exception:
                 continue

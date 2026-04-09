@@ -2,11 +2,11 @@
 
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_admin
@@ -178,7 +178,7 @@ async def add_ip_rule(
         "action": rule.get("action", "allow"),  # allow or deny
         "description": rule.get("description", ""),
         "created_by": str(user.id),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     _ip_rules.append(rule_entry)
 
@@ -258,7 +258,7 @@ async def create_api_key(
         "user_id": str(user.id),
         "scopes": data.get("scopes", ["read"]),
         "expires_at": data.get("expires_at"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "revoked": False,
     }
     _api_keys.append(key_entry)

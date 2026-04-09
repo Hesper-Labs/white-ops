@@ -1,6 +1,5 @@
 """Data cleaning tool - clean and normalize datasets using pandas."""
 
-import io
 import json
 from pathlib import Path
 from typing import Any
@@ -129,8 +128,8 @@ class DataCleaningTool(BaseTool):
             return _truncate(json.dumps({"error": "'file_path' is required"}))
 
         try:
-            import pandas as pd
             import numpy as np
+            import pandas as pd
         except ImportError as e:
             return _truncate(json.dumps({"error": f"Required library not available: {e}"}))
 

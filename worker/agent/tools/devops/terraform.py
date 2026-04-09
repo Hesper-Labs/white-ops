@@ -101,7 +101,7 @@ class TerraformTool(BaseTool):
                 return json.dumps({"error": f"Unknown action: {action}"})
         except FileNotFoundError as e:
             return json.dumps({"error": str(e)})
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("terraform_timeout", action=action)
             return json.dumps({"error": f"Terraform {action} timed out"})
         except Exception as e:

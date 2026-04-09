@@ -1,11 +1,10 @@
 """Approval Workflow API - manage approval requests and rules."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_admin, require_operator
@@ -77,7 +76,7 @@ async def create_approval_rule(
         "auto_approve_after_hours": data.get("auto_approve_after_hours"),
         "is_active": True,
         "created_by": str(user.id),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     _approval_rules[rule_id] = rule
 
@@ -149,7 +148,7 @@ async def approve_request(
 
     approval["status"] = "approved"
     approval["decided_by"] = str(user.id)
-    approval["decided_at"] = datetime.now(timezone.utc).isoformat()
+    approval["decided_at"] = datetime.now(UTC).isoformat()
     approval["decision_note"] = (data or {}).get("note", "")
 
     await log_action(
@@ -192,7 +191,7 @@ async def reject_request(
 
     approval["status"] = "rejected"
     approval["decided_by"] = str(user.id)
-    approval["decided_at"] = datetime.now(timezone.utc).isoformat()
+    approval["decided_at"] = datetime.now(UTC).isoformat()
     approval["rejection_reason"] = reason
 
     await log_action(

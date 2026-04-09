@@ -198,7 +198,7 @@ class DatabaseTool(BaseTool):
                 "rows": result_rows,
                 "row_count": len(result_rows),
             }, default=str))
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return json.dumps({"error": f"Query timed out after {QUERY_TIMEOUT}s"})
         finally:
             await conn.close()
@@ -330,7 +330,7 @@ class DatabaseTool(BaseTool):
                 "format": fmt,
                 "columns": columns,
             }))
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return json.dumps({"error": f"Query timed out after {QUERY_TIMEOUT}s"})
         finally:
             await conn.close()

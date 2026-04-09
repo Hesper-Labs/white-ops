@@ -1,17 +1,17 @@
 """Worker management API - registration, heartbeat, task dispatch."""
 
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models.worker import Worker
 from app.models.agent import Agent
 from app.models.task import Task
+from app.models.worker import Worker
 
 router = APIRouter()
 
@@ -50,7 +50,7 @@ async def register_worker(
         existing.cpu_cores = data.cpu_cores
         existing.memory_total_mb = data.memory_total_mb
         existing.os_info = data.os_info
-        existing.last_heartbeat = datetime.now(timezone.utc)
+        existing.last_heartbeat = datetime.now(UTC)
         if existing.is_approved:
             existing.status = "online"
         await db.flush()
@@ -65,7 +65,7 @@ async def register_worker(
         memory_total_mb=data.memory_total_mb,
         os_info=data.os_info,
         docker_version=data.docker_version,
-        last_heartbeat=datetime.now(timezone.utc),
+        last_heartbeat=datetime.now(UTC),
         status="pending",
     )
     db.add(worker)
@@ -89,7 +89,7 @@ async def worker_heartbeat(
     worker.cpu_usage_percent = data.cpu_usage_percent
     worker.memory_usage_percent = data.memory_usage_percent
     worker.disk_usage_percent = data.disk_usage_percent
-    worker.last_heartbeat = datetime.now(timezone.utc)
+    worker.last_heartbeat = datetime.now(UTC)
 
     if worker.is_approved and worker.status != "online":
         worker.status = "online"
@@ -126,7 +126,7 @@ async def get_worker_tasks(
         idle_agents = [a for a in agents.values() if a.status == "idle"]
         assigned_tasks = []
 
-        for task, agent in zip(tasks_to_assign, idle_agents):
+        for task, agent in zip(tasks_to_assign, idle_agents, strict=False):
             task.agent_id = agent.id
             task.status = "assigned"
             assigned_tasks.append(task)
@@ -173,7 +173,7 @@ async def workers_overview(
     )
 
     # Detect offline workers (no heartbeat in 2 minutes)
-    threshold = datetime.now(timezone.utc) - timedelta(minutes=2)
+    threshold = datetime.now(UTC) - timedelta(minutes=2)
     stale = await db.execute(
         select(Worker).where(
             Worker.status == "online",

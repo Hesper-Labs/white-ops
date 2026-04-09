@@ -5,11 +5,11 @@ import json
 import time
 import uuid
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import redis.asyncio as aioredis
 import structlog
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -60,7 +60,7 @@ class WorkflowEngine:
         await r.publish("whiteops:events:workflow", json.dumps({
             "event": event_type,
             **data,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }, default=str))
 
     # ------------------------------------------------------------------
@@ -103,7 +103,7 @@ class WorkflowEngine:
             queue = next_queue
 
         # Detect cycles
-        total_sorted = sum(len(l) for l in layers)
+        total_sorted = sum(len(layer) for layer in layers)
         if total_sorted < len(steps):
             raise ValueError("Workflow contains a dependency cycle")
 
@@ -342,7 +342,7 @@ class WorkflowEngine:
                 # Execute steps in this layer concurrently
                 tasks = [self.execute_step(s, context, db) for s in layer]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
-                for step, step_result in zip(layer, results):
+                for step, step_result in zip(layer, results, strict=True):
                     if isinstance(step_result, Exception):
                         context["steps"][str(step.id)] = {"status": "failed", "error": str(step_result)}
                         failed = True
@@ -361,7 +361,7 @@ class WorkflowEngine:
         await self._save_state(workflow_id, {
             "status": final_status,
             "context": context,
-            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "completed_at": datetime.now(UTC).isoformat(),
         })
 
         await self._emit_event("workflow_completed", {
