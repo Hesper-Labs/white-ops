@@ -68,7 +68,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: cd server && pip install -e ".[dev]"
+      - run: cd server && pip install ".[dev]"
       - run: cd server && python -m pytest tests/ -v --tb=short || true
         env:
           APP_ENV: test

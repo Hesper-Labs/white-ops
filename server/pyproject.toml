@@ -60,6 +60,9 @@ dev = [
     "faker>=30.0.0",
 ]
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
