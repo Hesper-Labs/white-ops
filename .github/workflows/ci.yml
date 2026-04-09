@@ -70,12 +70,6 @@ jobs:
           python-version: '3.12'
       - run: cd server && pip install ".[dev]"
       - run: cd server && python -m pytest tests/ -v --tb=short --junitxml=test-results.xml
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-test-results
-          path: server/test-results.xml
         env:
           APP_ENV: test
           POSTGRES_HOST: localhost
@@ -87,6 +81,12 @@ jobs:
           REDIS_PASSWORD: ''
           JWT_SECRET_KEY: test-secret-key-min-32-characters-long
           SECRET_KEY: test-secret-key-min-32-characters-long-too
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: server/test-results.xml
 
   test-frontend:
     runs-on: ubuntu-latest
