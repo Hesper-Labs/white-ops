@@ -21,10 +21,25 @@ class VaultService:
     def __init__(self):
         master_key = os.getenv("VAULT_MASTER_KEY", "")
         if not master_key:
+            # In production, refuse to start without a master key
+            app_env = os.getenv("APP_ENV", "development")
+            if app_env in ("production", "staging"):
+                raise RuntimeError(
+                    "VAULT_MASTER_KEY is required in production/staging. "
+                    "Generate one with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+                )
             master_key = Fernet.generate_key().decode()
-            logger.warning("vault_no_master_key", msg="Generated ephemeral key; set VAULT_MASTER_KEY for persistence")
+            logger.warning(
+                "vault_ephemeral_key",
+                msg="Using ephemeral key - secrets will be lost on restart. "
+                    "Set VAULT_MASTER_KEY for persistence.",
+            )
         key = master_key if isinstance(master_key, bytes) else master_key.encode()
-        self._fernet = Fernet(key)
+        try:
+            self._fernet = Fernet(key)
+        except Exception as exc:
+            logger.error("vault_invalid_master_key", error=str(exc))
+            raise RuntimeError(f"Invalid VAULT_MASTER_KEY format: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Encryption helpers
@@ -41,6 +56,9 @@ class VaultService:
         except InvalidToken:
             logger.error("vault_decrypt_failed", msg="Invalid token or wrong key")
             raise ValueError("Failed to decrypt secret - invalid token or wrong master key")
+        except Exception as exc:
+            logger.error("vault_decrypt_error", error=str(exc), error_type=type(exc).__name__)
+            raise ValueError(f"Failed to decrypt secret: {exc}") from exc
 
     # ------------------------------------------------------------------
     # CRUD operations

@@ -112,6 +112,15 @@ class Settings(BaseSettings):
             if self.jwt_secret_key == self.secret_key:
                 errors.append("JWT_SECRET_KEY and SECRET_KEY must be different")
 
+            if not self.vault_master_key or len(self.vault_master_key) < 32:
+                errors.append("VAULT_MASTER_KEY must be set (>=32 chars) for secrets encryption")
+
+            if not self.redis_password or self.redis_password.lower() in _INSECURE_DEFAULTS:
+                errors.append("REDIS_PASSWORD must be set and not a default value")
+
+            if self.cors_origins in ("http://localhost:3000", "http://localhost"):
+                errors.append("CORS_ORIGINS must be set to production domain(s)")
+
             if errors:
                 msg = "SECURITY CONFIGURATION ERRORS:\n" + "\n".join(f"  - {e}" for e in errors)
                 print(f"\n{'='*60}\n{msg}\n{'='*60}\n", file=sys.stderr)

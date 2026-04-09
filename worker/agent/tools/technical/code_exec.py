@@ -3,7 +3,7 @@
 import asyncio
 import json
 import os
-import resource
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -16,6 +16,7 @@ BLOCKED_PYTHON_IMPORTS = {
     "os.remove", "os.rmdir", "os.unlink", "pathlib.Path.unlink",
     "__import__", "exec", "eval", "compile",
     "socket", "http.client", "urllib",
+    "ctypes", "importlib", "builtins",
 }
 
 BLOCKED_SHELL_COMMANDS = {
@@ -28,6 +29,22 @@ BLOCKED_SHELL_COMMANDS = {
 MAX_MEMORY_MB = 256
 MAX_CPU_SECONDS = 30
 MAX_OUTPUT_BYTES = 10000
+
+# Sandbox wrapper is a separate template to prevent code injection
+_SANDBOX_TEMPLATE = '''\
+import resource
+import sys
+import os
+
+# Set resource limits
+resource.setrlimit(resource.RLIMIT_AS, ({mem_limit}, {mem_limit}))
+resource.setrlimit(resource.RLIMIT_CPU, ({cpu_limit}, {cpu_limit}))
+resource.setrlimit(resource.RLIMIT_NOFILE, (50, 50))
+resource.setrlimit(resource.RLIMIT_NPROC, (32, 32))
+
+# Restrict to /tmp for file operations
+os.chdir('/tmp')
+'''
 
 
 class CodeExecutionTool(BaseTool):
@@ -75,6 +92,11 @@ class CodeExecutionTool(BaseTool):
             for blocked in BLOCKED_PYTHON_IMPORTS:
                 if blocked.lower() in code_lower:
                     return f"Blocked: '{blocked}' is not allowed in sandbox"
+            # Block __import__ variants and importlib tricks
+            if re.search(r'__\s*import\s*__', code, re.IGNORECASE):
+                return "Blocked: dynamic import is not allowed in sandbox"
+            if re.search(r'getattr\s*\(\s*__builtins__', code, re.IGNORECASE):
+                return "Blocked: builtins access is not allowed in sandbox"
 
         elif language == "shell":
             for blocked in BLOCKED_SHELL_COMMANDS:
@@ -82,32 +104,41 @@ class CodeExecutionTool(BaseTool):
                     return f"Blocked: '{blocked}' is not allowed in sandbox"
 
         # Check for common attack patterns
-        if "../../" in code or "/etc/passwd" in code or "/etc/shadow" in code:
-            return "Blocked: path traversal detected"
+        attack_patterns = [
+            "../../", "/etc/passwd", "/etc/shadow",
+            "/proc/self", "/proc/1/", "/dev/shm",
+        ]
+        for pattern in attack_patterns:
+            if pattern in code:
+                return f"Blocked: suspicious path pattern detected: {pattern}"
 
         return None
 
     async def _run_python(self, code: str, timeout: int) -> str:
-        # Wrap code with resource limits
-        sandbox_wrapper = f"""
-import resource
-import sys
+        # Write sandbox wrapper and user code as SEPARATE files
+        # This prevents code injection via the wrapper template
+        sandbox_code = _SANDBOX_TEMPLATE.format(
+            mem_limit=MAX_MEMORY_MB * 1024 * 1024,
+            cpu_limit=timeout,
+        )
 
-# Set resource limits
-resource.setrlimit(resource.RLIMIT_AS, ({MAX_MEMORY_MB * 1024 * 1024}, {MAX_MEMORY_MB * 1024 * 1024}))
-resource.setrlimit(resource.RLIMIT_CPU, ({timeout}, {timeout}))
-resource.setrlimit(resource.RLIMIT_NOFILE, (50, 50))
+        with tempfile.NamedTemporaryFile(mode="w", suffix="_setup.py", delete=False, dir="/tmp") as sf:
+            sf.write(sandbox_code)
+            setup_path = sf.name
 
-# Restrict to /tmp for file operations
-import os
-os.chdir('/tmp')
+        with tempfile.NamedTemporaryFile(mode="w", suffix="_user.py", delete=False, dir="/tmp") as uf:
+            uf.write(code)
+            user_path = uf.name
 
-# Execute user code
-{code}
+        # Create a runner script that executes setup then user code safely
+        runner_code = f"""\
+import runpy
+exec(open({setup_path!r}).read())
+exec(open({user_path!r}).read())
 """
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, dir="/tmp") as f:
-            f.write(sandbox_wrapper)
-            script_path = f.name
+        with tempfile.NamedTemporaryFile(mode="w", suffix="_runner.py", delete=False, dir="/tmp") as rf:
+            rf.write(runner_code)
+            runner_path = rf.name
 
         try:
             env = {
@@ -117,8 +148,8 @@ os.chdir('/tmp')
                 "LANG": "C.UTF-8",
             }
 
-            proc = await asyncio.create_subprocess_exec(
-                "python", "-u", script_path,
+            proc = await asyncio.create_subprocess_exec(  # noqa: S603
+                "python", "-u", runner_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
@@ -136,7 +167,8 @@ os.chdir('/tmp')
             proc.kill()
             return json.dumps({"error": f"Execution timed out after {timeout}s"})
         finally:
-            Path(script_path).unlink(missing_ok=True)
+            for p in (setup_path, user_path, runner_path):
+                Path(p).unlink(missing_ok=True)
 
     async def _run_shell(self, code: str, timeout: int) -> str:
         try:
@@ -146,8 +178,8 @@ os.chdir('/tmp')
                 "TMPDIR": "/tmp",
             }
 
-            proc = await asyncio.create_subprocess_shell(
-                code,
+            proc = await asyncio.create_subprocess_exec(  # noqa: S603
+                "/bin/sh", "-c", code,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,

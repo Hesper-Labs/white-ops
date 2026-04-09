@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import shlex
 from typing import Any
 
@@ -39,74 +40,76 @@ class ShellTool(BaseTool):
     }
 
     # Dangerous commands and patterns that should be blocked
-    BLOCKED_COMMANDS = [
-        "rm -rf /",
-        "rm -rf /*",
-        "rm -rf ~",
-        "rm -rf .",
-        "mkfs",
-        "dd if=",
-        "shutdown",
-        "reboot",
-        "halt",
-        "poweroff",
-        "init 0",
-        "init 6",
-        ":(){ :|:& };:",  # fork bomb
-        "> /dev/sda",
-        "chmod -R 777 /",
-        "chown -R",
-        "mv /* ",
-        "wget|sh",
-        "curl|sh",
-        "wget|bash",
-        "curl|bash",
-        "> /etc/passwd",
-        "> /etc/shadow",
-        "format c:",
-        "del /f /s /q",
+    BLOCKED_PATTERNS = [
+        r"rm\s+-[a-z]*r[a-z]*f[a-z]*\s+/",  # rm -rf /
+        r"rm\s+-[a-z]*f[a-z]*r[a-z]*\s+/",  # rm -fr /
+        r"rm\s+-[a-z]*r[a-z]*f[a-z]*\s+\*",  # rm -rf *
+        r"rm\s+-[a-z]*r[a-z]*f[a-z]*\s+~",  # rm -rf ~
+        r"rm\s+-[a-z]*r[a-z]*f[a-z]*\s+\.",  # rm -rf .
+        r"mkfs\b",
+        r"\bdd\s+if=",
+        r"\bshutdown\b",
+        r"\breboot\b",
+        r"\bhalt\b",
+        r"\bpoweroff\b",
+        r"\binit\s+[06]\b",
+        r":\(\)\s*\{\s*:\|:&\s*\}\s*;:",  # fork bomb
+        r">\s*/dev/sd[a-z]",
+        r"\bchmod\s+-R\s+777\s+/",
+        r"\bchown\s+-R\s+.*\s+/\s*$",
+        r"\bmv\s+/\*",
+        r"wget\s.*\|\s*(sh|bash)",
+        r"curl\s.*\|\s*(sh|bash)",
+        r">\s*/etc/passwd",
+        r">\s*/etc/shadow",
+        r"\bformat\s+c:",
+        r"\bdel\s+/f\s+/s\s+/q",
     ]
 
-    BLOCKED_EXECUTABLES = [
-        "mkfs",
-        "fdisk",
-        "parted",
-        "shutdown",
-        "reboot",
-        "halt",
-        "poweroff",
-        "systemctl poweroff",
-        "systemctl reboot",
-    ]
+    BLOCKED_EXECUTABLES = frozenset({
+        "mkfs", "fdisk", "parted", "shutdown", "reboot",
+        "halt", "poweroff",
+    })
+
+    DANGEROUS_PATHS = frozenset({
+        "/", "/*", "~", ".", "..",
+        "/etc", "/usr", "/bin", "/sbin",
+        "/boot", "/dev", "/proc", "/sys",
+    })
 
     def _is_dangerous(self, command: str) -> str | None:
         """Check if a command is dangerous. Returns reason if blocked, None if safe."""
         cmd_lower = command.lower().strip()
 
-        # Check blocked patterns
-        for pattern in self.BLOCKED_COMMANDS:
-            if pattern.lower() in cmd_lower:
+        # Check blocked patterns using regex
+        for pattern in self.BLOCKED_PATTERNS:
+            if re.search(pattern, cmd_lower):
                 return f"Blocked dangerous pattern: {pattern}"
 
-        # Check blocked executables
+        # Check blocked executables via shlex parsing
         try:
             parts = shlex.split(cmd_lower)
             if parts:
-                base_cmd = parts[0].split("/")[-1]  # handle /usr/bin/xxx paths
+                base_cmd = parts[0].split("/")[-1]
                 if base_cmd in self.BLOCKED_EXECUTABLES:
                     return f"Blocked dangerous command: {base_cmd}"
         except ValueError:
-            pass  # Malformed command, let the shell handle the error
+            # Malformed command - block it for safety
+            return "Blocked: malformed command could not be parsed safely"
 
         # Check for recursive rm with force on broad paths
         if "rm " in cmd_lower and ("-rf" in cmd_lower or "-fr" in cmd_lower):
             try:
                 parts = shlex.split(command)
                 for part in parts:
-                    if part in ("/", "/*", "~", ".", ".."):
+                    if part in self.DANGEROUS_PATHS:
                         return f"Blocked dangerous rm target: {part}"
             except ValueError:
-                pass
+                return "Blocked: could not parse rm command safely"
+
+        # Block command chaining that might bypass checks
+        if re.search(r';\s*(rm|mkfs|dd|shutdown|reboot|halt)', cmd_lower):
+            return "Blocked: chained dangerous command detected"
 
         return None
 
@@ -131,8 +134,8 @@ class ShellTool(BaseTool):
         cwd = kwargs.get("cwd")
 
         try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
+            proc = await asyncio.create_subprocess_exec(  # noqa: S603
+                "/bin/sh", "-c", command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
@@ -157,6 +160,10 @@ class ShellTool(BaseTool):
                 "stderr_truncated": stderr_truncated,
             })
         except asyncio.TimeoutError:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
             return json.dumps({
                 "error": f"Command timed out after {timeout} seconds",
                 "command": command,

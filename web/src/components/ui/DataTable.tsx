@@ -108,12 +108,14 @@ export function DataTable<T extends Record<string, any>>({
       {searchable && (
         <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" aria-hidden="true" />
             <input
-              type="text"
+              type="search"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
+              role="searchbox"
               className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:ring-neutral-500"
             />
           </div>
@@ -121,24 +123,30 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto" role="region" aria-label="Data table" tabIndex={0}>
+        <table className="w-full text-sm" role="table">
           <thead className="sticky top-0 z-10">
             <tr className="bg-neutral-50 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-700">
               {allColumns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
+                  aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : sortDir === 'desc' ? 'descending' : 'none') : undefined}
                   className={cn(
                     'px-4 py-3 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider whitespace-nowrap',
                     col.sortable && 'cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300',
                     col.className,
                   )}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  onKeyDown={col.sortable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort(col.key); } } : undefined}
+                  tabIndex={col.sortable ? 0 : undefined}
+                  role={col.sortable ? 'columnheader button' : 'columnheader'}
+                  aria-label={col.sortable ? `Sort by ${col.label}` : col.label}
                 >
                   <span className="inline-flex items-center gap-1">
                     {col.label}
                     {col.sortable && (
-                      <span className="text-neutral-300 dark:text-neutral-600">
+                      <span className="text-neutral-300 dark:text-neutral-600" aria-hidden="true">
                         {sortKey === col.key && sortDir === 'asc' ? (
                           <ChevronUp className="h-3.5 w-3.5 text-neutral-700 dark:text-neutral-300" />
                         ) : sortKey === col.key && sortDir === 'desc' ? (
@@ -189,17 +197,18 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Pagination */}
       {sorted.length > pageSize && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">
+        <nav className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-neutral-700" aria-label="Table pagination">
+          <span className="text-xs text-neutral-500 dark:text-neutral-400" aria-live="polite">
             {safePage * pageSize + 1}-{Math.min((safePage + 1) * pageSize, sorted.length)} of {sorted.length}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" role="group" aria-label="Pagination controls">
             <button
               disabled={safePage === 0}
               onClick={() => setPage((p) => p - 1)}
+              aria-label="Previous page"
               className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 disabled:opacity-40 disabled:pointer-events-none dark:hover:text-neutral-300 dark:hover:bg-neutral-700"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
             {Array.from({ length: totalPages }, (_, i) => (
               <button
@@ -218,12 +227,13 @@ export function DataTable<T extends Record<string, any>>({
             <button
               disabled={safePage >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
+              aria-label="Next page"
               className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 disabled:opacity-40 disabled:pointer-events-none dark:hover:text-neutral-300 dark:hover:bg-neutral-700"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </nav>
       )}
     </div>
   );

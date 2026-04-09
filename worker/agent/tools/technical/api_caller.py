@@ -38,15 +38,40 @@ def _truncate(text: str) -> str:
 
 
 def _is_private_ip(hostname: str) -> bool:
-    """Check if hostname resolves to a private IP."""
+    """Check if hostname resolves to a private IP, including DNS resolution."""
+    import socket
+
     if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
         return True
     try:
         addr = ipaddress.ip_address(hostname)
         return any(addr in network for network in PRIVATE_RANGES)
     except ValueError:
-        # Not a direct IP, could be a hostname - allow DNS resolution
-        return False
+        pass
+
+    # Resolve hostname to check if it points to a private IP
+    try:
+        addrinfos = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        for family, _, _, _, sockaddr in addrinfos:
+            ip_str = sockaddr[0]
+            try:
+                addr = ipaddress.ip_address(ip_str)
+                if any(addr in network for network in PRIVATE_RANGES):
+                    return True
+            except ValueError:
+                continue
+    except socket.gaierror:
+        pass
+
+    return False
+
+
+# AWS/GCP/Azure metadata endpoints
+BLOCKED_METADATA_IPS = {
+    "169.254.169.254",  # AWS/GCP metadata
+    "metadata.google.internal",
+    "169.254.170.2",    # AWS ECS task metadata
+}
 
 
 class APICallerTool(BaseTool):
@@ -161,9 +186,16 @@ class APICallerTool(BaseTool):
         if parsed.scheme not in ("http", "https"):
             return json.dumps({"error": f"Unsupported scheme: {parsed.scheme}. Use http or https."})
 
-        # Check for private IPs
+        # Block cloud metadata endpoints (always blocked, even with allow_internal)
+        hostname = parsed.hostname or ""
+        if hostname in BLOCKED_METADATA_IPS:
+            return json.dumps({
+                "error": "Requests to cloud metadata endpoints are always blocked for security."
+            })
+
+        # Check for private IPs (with DNS resolution)
         allow_internal = kwargs.get("allow_internal", False)
-        if not allow_internal and _is_private_ip(parsed.hostname or ""):
+        if not allow_internal and _is_private_ip(hostname):
             return json.dumps({
                 "error": "Requests to localhost/private IPs are blocked. Set allow_internal=true to override."
             })
@@ -181,8 +213,8 @@ class APICallerTool(BaseTool):
         try:
             async with httpx.AsyncClient(
                 timeout=timeout,
-                follow_redirects=True,
-                max_redirects=5,
+                follow_redirects=False,
+                max_redirects=0,
             ) as client:
                 request_kwargs: dict[str, Any] = {
                     "method": method,
@@ -197,6 +229,27 @@ class APICallerTool(BaseTool):
                     request_kwargs["data"] = form_data
 
                 response = await client.request(**request_kwargs)
+
+            # Handle redirects safely - check target for SSRF
+            if response.is_redirect:
+                location = response.headers.get("location", "")
+                if location:
+                    redirect_parsed = urlparse(location)
+                    redirect_host = redirect_parsed.hostname or ""
+                    if redirect_host in BLOCKED_METADATA_IPS:
+                        return json.dumps({
+                            "error": "Redirect to cloud metadata endpoint blocked."
+                        })
+                    if not allow_internal and _is_private_ip(redirect_host):
+                        return json.dumps({
+                            "error": f"Redirect to private IP blocked: {redirect_host}"
+                        })
+                    return json.dumps({
+                        "redirect": True,
+                        "status_code": response.status_code,
+                        "location": location,
+                        "message": "Request was redirected. Make a new request to the location URL.",
+                    })
 
             # Check response size
             content_length = int(response.headers.get("content-length", 0))

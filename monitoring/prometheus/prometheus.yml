@@ -1,21 +1,43 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - "alert.rules.yml"
 
 scrape_configs:
+  # FastAPI server metrics (exposed via prometheus_client on /metrics)
   - job_name: "whiteops-server"
     static_configs:
       - targets: ["server:8000"]
     metrics_path: /metrics
+    scrape_interval: 15s
 
+  # Worker health metrics
   - job_name: "whiteops-worker"
     static_configs:
-      - targets: ["worker:9100"]
+      - targets: ["worker:8080"]
+    metrics_path: /metrics
+    scrape_interval: 15s
 
+  # Redis metrics via redis-exporter (needs redis_exporter sidecar or service)
+  # Note: Redis does not natively expose Prometheus metrics on port 6379
+  # Deploy redis-exporter (https://github.com/oliver006/redis_exporter) and update target
   - job_name: "redis"
     static_configs:
-      - targets: ["redis:6379"]
+      - targets: ["redis-exporter:9121"]
+    scrape_interval: 30s
 
+  # PostgreSQL metrics via postgres-exporter (needs postgres_exporter sidecar or service)
+  # Note: PostgreSQL does not natively expose Prometheus metrics on port 5432
+  # Deploy postgres_exporter (https://github.com/prometheus-community/postgres_exporter) and update target
   - job_name: "postgres"
     static_configs:
-      - targets: ["postgres:5432"]
+      - targets: ["postgres-exporter:9187"]
+    scrape_interval: 30s
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+    scrape_interval: 60s

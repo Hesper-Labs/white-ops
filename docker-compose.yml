@@ -27,7 +27,16 @@ services:
   # ---- Cache & Message Queue ----
   redis:
     image: redis:7-alpine
-    command: redis-server --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
     volumes:
       - redis_data:/data
     ports:
@@ -264,21 +273,64 @@ services:
     restart: unless-stopped
 
   # ---- Monitoring (optional) ----
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.66.0-alpine
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?err}
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-whiteops}:${POSTGRES_PASSWORD:?err}@postgres:5432/${POSTGRES_DB:-whiteops}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    restart: unless-stopped
+
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
+    depends_on:
+      - redis-exporter
+      - postgres-exporter
     profiles:
       - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
@@ -289,6 +341,11 @@ services:
       - prometheus
     profiles:
       - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     restart: unless-stopped
 
 volumes:

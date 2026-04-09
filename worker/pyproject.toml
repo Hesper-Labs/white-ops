@@ -78,7 +78,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "S", "B"]
-ignore = ["S101", "S603", "S607"]
+ignore = ["S101"]  # Allow assert in tests
+# Note: S603 (subprocess) and S607 (partial path) are now enforced
+# Tools that legitimately use subprocess must use # noqa: S603 inline
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,21 +1,24 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// API response types
 
-// API response types - intentionally using `any` for dynamic API data
-// These map to the actual JSON shapes returned by the server
+export type AgentStatus = "idle" | "busy" | "error" | "offline" | "starting" | "stopping";
+export type TaskStatus = "pending" | "assigned" | "in_progress" | "completed" | "failed" | "cancelled";
+export type TaskPriority = "low" | "medium" | "high" | "critical";
+export type AgentRole = "researcher" | "analyst" | "developer" | "writer" | "assistant" | "custom";
+export type WorkerStatus = "online" | "offline" | "maintenance";
 
 export interface Agent {
   id: string;
   name: string;
   description: string | null;
-  role: string;
-  status: string;
+  role: AgentRole | string;
+  status: AgentStatus | string;
   is_active: boolean;
   llm_provider: string;
   llm_model: string;
   system_prompt: string | null;
   temperature: number;
   max_tokens: number;
-  enabled_tools: Record<string, any>;
+  enabled_tools: Record<string, boolean>;
   max_concurrent_tasks: number;
   tasks_completed: number;
   tasks_failed: number;
@@ -30,13 +33,13 @@ export interface Task {
   title: string;
   description: string | null;
   instructions: string | null;
-  status: string;
-  priority: string;
+  status: TaskStatus | string;
+  priority: TaskPriority | string;
   agent_id: string | null;
   assigned_by: string | null;
   result: string | null;
   error: string | null;
-  output_files: any[];
+  output_files: OutputFile[];
   deadline: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -47,12 +50,19 @@ export interface Task {
   updated_at: string;
 }
 
+export interface OutputFile {
+  id: string;
+  filename: string;
+  size_bytes: number;
+  content_type: string;
+}
+
 export interface Worker {
   id: string;
   name: string;
   hostname: string;
   ip_address: string;
-  status: string;
+  status: WorkerStatus | string;
   is_approved: boolean;
   group: string | null;
   max_agents: number;
@@ -70,8 +80,15 @@ export interface Message {
   subject: string | null;
   body: string;
   is_read: boolean;
-  attachments: any[];
+  attachments: MessageAttachment[];
   created_at: string;
+}
+
+export interface MessageAttachment {
+  id: string;
+  filename: string;
+  size_bytes: number;
+  content_type: string;
 }
 
 export interface FileEntry {
@@ -105,7 +122,7 @@ export interface Collaboration {
 }
 
 export interface CollaborationDetail extends Collaboration {
-  shared_context: Record<string, any>;
+  shared_context: Record<string, unknown>;
   messages: CollaborationMessage[];
 }
 

@@ -14,6 +14,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   demoMode: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -24,8 +25,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem("whiteops_token"),
   isLoading: true,
   demoMode: localStorage.getItem("whiteops_demo") === "true",
+  error: null,
 
   login: async (email: string, password: string) => {
+    set({ error: null, isLoading: true });
     try {
       const response = await authApi.login(email, password);
       const { access_token } = response.data;
@@ -34,9 +37,27 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ token: access_token });
 
       const meResponse = await authApi.me();
-      set({ user: meResponse.data, isLoading: false, demoMode: false });
-    } catch {
-      // Backend not available - enter demo mode
+      set({ user: meResponse.data, isLoading: false, demoMode: false, error: null });
+    } catch (err) {
+      const axiosError = err as { response?: { status: number; data?: { detail?: string } }; code?: string };
+
+      // Distinguish between auth failure and server unavailable
+      if (axiosError.response?.status === 401 || axiosError.response?.status === 422) {
+        set({ isLoading: false, error: "Invalid email or password" });
+        throw new Error("Invalid email or password");
+      }
+
+      if (axiosError.response?.status === 423) {
+        set({ isLoading: false, error: "Account locked due to too many failed attempts" });
+        throw new Error("Account locked");
+      }
+
+      if (axiosError.response?.status === 503) {
+        set({ isLoading: false, error: "Service temporarily unavailable. Please try again." });
+        throw new Error("Service unavailable");
+      }
+
+      // Backend truly not available - enter demo mode with explicit warning
       const demoAuth = await mockApi.auth.login();
       localStorage.setItem("whiteops_token", demoAuth.data.access_token);
       localStorage.setItem("whiteops_demo", "true");
@@ -46,6 +67,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         token: demoAuth.data.access_token,
         isLoading: false,
         demoMode: true,
+        error: null,
       });
     }
   },

@@ -3,8 +3,10 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./stores/authStore";
 import { useNotifications } from "./hooks/useNotifications";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { DemoBanner } from "./components/ui/DemoBanner";
 import Layout from "./components/layout/Layout";
 import Login from "./pages/Login";
+import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Tasks from "./pages/Tasks";
@@ -76,6 +78,7 @@ export default function App() {
           element={
             <ProtectedRoute>
               <NotificationProvider>
+                <DemoBanner />
                 <Layout>
                   <ErrorBoundary>
                     <Routes>
@@ -114,6 +117,7 @@ export default function App() {
                       <Route path="/triggers" element={<Triggers />} />
                       <Route path="/notifications" element={<NotificationCenter />} />
                       <Route path="/settings" element={<Settings />} />
+                      <Route path="*" element={<NotFound />} />
                     </Routes>
                   </ErrorBoundary>
                 </Layout>

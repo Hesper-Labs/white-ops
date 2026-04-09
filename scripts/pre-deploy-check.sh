@@ -88,9 +88,35 @@ if [ -f .env ]; then
         warn "No LLM API keys configured (agents won't be able to use cloud LLMs)"
     fi
 
+    # Vault master key
+    if [ -n "${VAULT_MASTER_KEY:-}" ] && [ ${#VAULT_MASTER_KEY} -ge 32 ]; then
+        check "VAULT_MASTER_KEY is set (>=32 chars)" 0
+    else
+        check "VAULT_MASTER_KEY is set (>=32 chars)" 1
+    fi
+
+    # SECRET_KEY length check
+    if [ -n "${SECRET_KEY:-}" ] && [ ${#SECRET_KEY} -ge 32 ]; then
+        check "SECRET_KEY length >= 32 characters" 0
+    else
+        check "SECRET_KEY length >= 32 characters" 1
+    fi
+
+    # JWT_SECRET_KEY != SECRET_KEY
+    if [ "${JWT_SECRET_KEY:-}" != "${SECRET_KEY:-}" ]; then
+        check "JWT_SECRET_KEY differs from SECRET_KEY" 0
+    else
+        check "JWT_SECRET_KEY differs from SECRET_KEY" 1
+    fi
+
     # CORS
-    if [ "${CORS_ORIGINS:-}" = "http://localhost:3000" ]; then
+    if [ "${CORS_ORIGINS:-}" = "http://localhost:3000" ] || [ "${CORS_ORIGINS:-}" = "http://localhost" ]; then
         warn "CORS_ORIGINS is still localhost (update for production domain)"
+    fi
+
+    # Grafana password
+    if [ "${GRAFANA_ADMIN_PASSWORD:-admin}" = "admin" ]; then
+        warn "GRAFANA_ADMIN_PASSWORD is default 'admin'"
     fi
 else
     check ".env file exists" 1

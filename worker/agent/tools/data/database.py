@@ -76,28 +76,49 @@ class DatabaseTool(BaseTool):
 
     def _is_safe_query(self, sql: str, allow_mutations: bool = False) -> tuple[bool, str]:
         """Validate SQL query safety."""
-        normalized = sql.strip().upper()
+        normalized = sql.strip()
 
         if not normalized:
             return False, "Empty SQL query"
 
+        # Block stacked queries (multiple statements)
+        # Remove string literals and comments first for accurate detection
+        cleaned = self._strip_literals_and_comments(normalized.upper())
+
         if allow_mutations:
+            # Even with mutations allowed, block stacked queries
+            if ";" in cleaned.rstrip(";").rstrip():
+                return False, "Multiple statements (stacked queries) are not allowed"
             return True, ""
 
         # Must start with SELECT, WITH (for CTEs), or EXPLAIN
-        if not any(normalized.startswith(kw) for kw in ("SELECT", "WITH", "EXPLAIN")):
+        if not any(cleaned.startswith(kw) for kw in ("SELECT", "WITH", "EXPLAIN")):
             return False, "Only SELECT, WITH (CTE), and EXPLAIN queries are allowed"
 
-        # Check for dangerous keywords (outside of string literals)
-        # Simple check: remove quoted strings first
-        cleaned = re.sub(r"'[^']*'", "", normalized)
-        cleaned = re.sub(r'"[^"]*"', "", cleaned)
+        # Block stacked queries
+        if ";" in cleaned.rstrip(";").rstrip():
+            return False, "Multiple statements (stacked queries) are not allowed"
 
         for keyword in DANGEROUS_KEYWORDS:
             if re.search(rf"\b{keyword}\b", cleaned):
                 return False, f"Dangerous keyword '{keyword}' detected. Set allow_mutations=true to override."
 
         return True, ""
+
+    @staticmethod
+    def _strip_literals_and_comments(sql: str) -> str:
+        """Remove string literals, dollar-quoted strings, and comments from SQL."""
+        # Remove single-line comments
+        result = re.sub(r"--[^\n]*", "", sql)
+        # Remove multi-line comments
+        result = re.sub(r"/\*.*?\*/", "", result, flags=re.DOTALL)
+        # Remove single-quoted strings (handle escaped quotes)
+        result = re.sub(r"'(?:[^']|'')*'", "", result)
+        # Remove double-quoted identifiers
+        result = re.sub(r'"(?:[^"]|"")*"', "", result)
+        # Remove dollar-quoted strings
+        result = re.sub(r"\$[a-zA-Z]*\$.*?\$[a-zA-Z]*\$", "", result, flags=re.DOTALL)
+        return result
 
     async def execute(self, **kwargs: Any) -> Any:
         action = kwargs.get("action")

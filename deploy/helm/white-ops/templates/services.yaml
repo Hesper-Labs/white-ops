@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-server
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.server.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-worker
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-web
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: web
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-mail
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mail
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8025
+      targetPort: smtp
+      protocol: TCP
+      name: smtp
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: mail
+---
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-postgres
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: postgresql
+      protocol: TCP
+      name: postgresql
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
+{{- end }}
+---
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-redis
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: redis
+{{- end }}
+---
+{{- if .Values.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "white-ops.fullname" . }}-minio
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: api
+      protocol: TCP
+      name: api
+    - port: 9001
+      targetPort: console
+      protocol: TCP
+      name: console
+  selector:
+    app.kubernetes.io/name: {{ include "white-ops.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: minio
+{{- end }}

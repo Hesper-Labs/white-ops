@@ -137,10 +137,26 @@ def generate_api_key() -> str:
 
 
 def hash_api_key(key: str) -> str:
-    """Hash an API key for storage using SHA-256."""
-    return hashlib.sha256(key.encode()).hexdigest()
+    """Hash an API key for storage using bcrypt (salted)."""
+    return pwd_context.hash(key)
 
 
 def verify_api_key(key: str, hashed: str) -> bool:
-    """Verify an API key against its stored hash."""
-    return secrets.compare_digest(hash_api_key(key), hashed)
+    """Verify an API key against its stored bcrypt hash."""
+    try:
+        return pwd_context.verify(key, hashed)
+    except Exception:
+        return False
+
+
+# Legacy SHA-256 verification for migration period
+def _verify_api_key_sha256(key: str, hashed: str) -> bool:
+    """Verify against legacy SHA-256 hash during migration."""
+    return secrets.compare_digest(hashlib.sha256(key.encode()).hexdigest(), hashed)
+
+
+def verify_api_key_compat(key: str, hashed: str) -> bool:
+    """Verify API key with bcrypt (preferred) or SHA-256 (legacy) fallback."""
+    if hashed.startswith("$2"):
+        return verify_api_key(key, hashed)
+    return _verify_api_key_sha256(key, hashed)

@@ -31,6 +31,48 @@ ENDPOINT_RATE_LIMITS: dict[str, tuple[int, int]] = {
 
 SKIP_PATHS = frozenset(("/health", "/docs", "/openapi.json", "/redoc"))
 
+# ---- In-Memory Rate Limiter (fallback when Redis is unavailable) ----
+
+import collections
+import threading
+
+_memory_rate_store: dict[str, collections.deque] = {}
+_memory_rate_lock = threading.Lock()
+_MAX_MEMORY_KEYS = 10000  # Prevent unbounded memory growth
+
+
+def _in_memory_rate_check(key: str, limit: int, window: int) -> tuple[bool, int, int]:
+    """In-memory sliding-window rate limiter as fallback when Redis is unavailable."""
+    now = time.time()
+    reset_at = int(now) + window
+
+    with _memory_rate_lock:
+        # Evict stale keys if store is too large
+        if len(_memory_rate_store) > _MAX_MEMORY_KEYS:
+            cutoff = now - window * 2
+            stale_keys = [k for k, v in _memory_rate_store.items() if not v or v[-1] < cutoff]
+            for k in stale_keys[:1000]:
+                del _memory_rate_store[k]
+
+        if key not in _memory_rate_store:
+            _memory_rate_store[key] = collections.deque()
+
+        dq = _memory_rate_store[key]
+
+        # Remove expired entries
+        window_start = now - window
+        while dq and dq[0] < window_start:
+            dq.popleft()
+
+        # Add current request
+        dq.append(now)
+
+        current_count = len(dq)
+        allowed = current_count <= limit
+        remaining = max(0, limit - current_count)
+
+    return allowed, remaining, reset_at
+
 
 async def _redis_sliding_window(key: str, limit: int, window: int) -> tuple[bool, int, int]:
     """Check rate limit using Redis sorted-set sliding window.
@@ -88,7 +130,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             except Exception:
                 pass  # Fall back to IP-based limiting
 
-        # Try Redis, fall back to allow on failure
+        # Try Redis, fall back to in-memory rate limiting on failure
         if _redis is not None:
             try:
                 allowed, remaining, reset_at = await _redis_sliding_window(
@@ -96,13 +138,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
             except Exception as exc:
                 logger.warning("redis_rate_limit_error", error=str(exc))
-                # Graceful fallback: allow the request
-                response = await call_next(request)
-                return response
+                allowed, remaining, reset_at = _in_memory_rate_check(rate_key, limit, window)
         else:
-            logger.warning("redis_unavailable_rate_limit_skipped")
-            response = await call_next(request)
-            return response
+            logger.warning("redis_unavailable_using_memory_rate_limit")
+            allowed, remaining, reset_at = _in_memory_rate_check(rate_key, limit, window)
 
         if not allowed:
             logger.warning("rate_limit_exceeded", key=rate_key, path=request.url.path)

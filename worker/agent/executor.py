@@ -191,20 +191,36 @@ class TaskExecutor:
         tool_name: str,
         tool_args: dict,
         timeout: float,
+        max_retries: int = 2,
     ) -> str:
-        """Execute a single tool with a timeout."""
-        try:
-            result = await asyncio.wait_for(
-                self.tools.execute(tool_name, tool_args),
-                timeout=timeout,
-            )
-            return _truncate_output(str(result))
-        except asyncio.TimeoutError:
-            logger.warning("tool_timeout", tool=tool_name, timeout=timeout)
-            return f"Error: Tool '{tool_name}' timed out after {timeout}s"
-        except Exception as e:
-            logger.error("tool_execution_error", tool=tool_name, error=str(e))
-            return f"Error executing {tool_name}: {e}"
+        """Execute a single tool with a timeout and retry for transient failures."""
+        last_error = None
+        for attempt in range(max_retries + 1):
+            try:
+                result = await asyncio.wait_for(
+                    self.tools.execute(tool_name, tool_args),
+                    timeout=timeout,
+                )
+                return _truncate_output(str(result))
+            except asyncio.TimeoutError:
+                logger.warning("tool_timeout", tool=tool_name, timeout=timeout, attempt=attempt + 1)
+                last_error = f"Tool '{tool_name}' timed out after {timeout}s"
+                if attempt < max_retries:
+                    await asyncio.sleep(min(2 ** attempt, 5))
+                    continue
+            except (ConnectionError, OSError) as e:
+                # Transient errors - retry
+                logger.warning("tool_transient_error", tool=tool_name, error=str(e), attempt=attempt + 1)
+                last_error = str(e)
+                if attempt < max_retries:
+                    await asyncio.sleep(min(2 ** attempt, 5))
+                    continue
+            except Exception as e:
+                # Non-transient errors - don't retry
+                logger.error("tool_execution_error", tool=tool_name, error=str(e))
+                return f"Error executing {tool_name}: {e}"
+
+        return f"Error: {last_error} (after {max_retries + 1} attempts)"
 
     async def _execute_tools_parallel(
         self,

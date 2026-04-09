@@ -46,14 +46,29 @@ async def _get_revocation_redis() -> aioredis.Redis | None:
 
 
 async def _is_token_revoked(token: str) -> bool:
-    """Check if a token has been revoked via Redis."""
+    """Check if a token has been revoked via Redis.
+
+    SECURITY: If Redis is unavailable, we DENY the request rather than allowing
+    potentially revoked tokens through. This is fail-closed behavior.
+    """
     redis_client = await _get_revocation_redis()
     if redis_client is None:
-        return False  # If Redis is down, allow the request
+        logger.error(
+            "redis_revocation_unavailable",
+            detail="Denying request because token revocation check is unavailable",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable. Please try again.",
+        )
     try:
         return await redis_client.exists(f"revoked_token:{token}") > 0
-    except Exception:
-        return False
+    except Exception as exc:
+        logger.error("redis_revocation_check_failed", error=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable. Please try again.",
+        )
 
 
 async def get_current_user(
@@ -187,21 +202,29 @@ async def require_mfa_verified(
     mfa_record = result.scalar_one_or_none()
 
     if mfa_record is not None:
-        # MFA is enabled -- check Redis or token claim for verification
+        # MFA is enabled -- check Redis for verification status
         redis_client = await _get_revocation_redis()
-        if redis_client:
-            try:
-                mfa_ok = await redis_client.get(f"mfa_verified:{user.id}")
-                if not mfa_ok:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="MFA verification required",
-                    )
-            except HTTPException:
-                raise
-            except Exception:
-                # Redis unavailable, fall through
-                pass
+        if redis_client is None:
+            logger.error("redis_mfa_unavailable", user_id=str(user.id))
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="MFA verification service temporarily unavailable.",
+            )
+        try:
+            mfa_ok = await redis_client.get(f"mfa_verified:{user.id}")
+            if not mfa_ok:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="MFA verification required",
+                )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("redis_mfa_check_failed", error=str(exc), user_id=str(user.id))
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="MFA verification service temporarily unavailable.",
+            )
 
     return user
 

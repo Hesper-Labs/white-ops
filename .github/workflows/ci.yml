@@ -31,15 +31,15 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install ruff
-      - run: cd server && ruff check app/ || true
-      - run: cd worker && ruff check agent/ || true
+      - run: cd server && ruff check app/
+      - run: cd worker && ruff check agent/
 
   security-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Node dependency audit
-        run: cd web && npm ci && npm audit --audit-level=critical || true
+        run: cd web && npm ci && npm audit --audit-level=critical
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -69,7 +69,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: cd server && pip install ".[dev]"
-      - run: cd server && python -m pytest tests/ -v --tb=short || true
+      - run: cd server && python -m pytest tests/ -v --tb=short --junitxml=test-results.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: server/test-results.xml
         env:
           APP_ENV: test
           POSTGRES_HOST: localhost
@@ -93,7 +99,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: cd web && npm ci
-      - run: cd web && npx vitest run || true
+      - run: cd web && npx vitest run
 
   build-docker:
     runs-on: ubuntu-latest

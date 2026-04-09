@@ -9,12 +9,12 @@ class WorkerSettings(BaseSettings):
     # Redis
     redis_host: str = "localhost"
     redis_port: int = 6379
-    redis_password: str = "changeme"
+    redis_password: str = ""
 
     # MinIO
     minio_endpoint: str = "localhost:9000"
     minio_root_user: str = "whiteops"
-    minio_root_password: str = "changeme"
+    minio_root_password: str = ""
     minio_bucket: str = "whiteops-files"
 
     # LLM
@@ -39,5 +39,24 @@ class WorkerSettings(BaseSettings):
 
     model_config = {"env_prefix": "", "case_sensitive": False}
 
+    def validate_required(self) -> list[str]:
+        """Return list of configuration warnings."""
+        warnings = []
+        if not self.redis_password:
+            warnings.append("REDIS_PASSWORD is not set - Redis connection may fail")
+        if not self.minio_root_password:
+            warnings.append("MINIO_ROOT_PASSWORD is not set - MinIO connection may fail")
+        if not any([self.anthropic_api_key, self.openai_api_key, self.google_api_key]):
+            warnings.append("No LLM API key configured - agent will not be able to process tasks")
+        return warnings
+
 
 settings = WorkerSettings()
+
+# Log warnings at import time
+_warnings = settings.validate_required()
+if _warnings:
+    import structlog
+    _logger = structlog.get_logger()
+    for w in _warnings:
+        _logger.warning("config_warning", message=w)

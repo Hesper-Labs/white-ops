@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "white-ops.fullname" . }}-config
+  labels:
+    {{- include "white-ops.labels" . | nindent 4 }}
+data:
+  POSTGRES_HOST: {{ include "white-ops.fullname" . }}-postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: {{ .Values.postgres.auth.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.auth.username | quote }}
+  REDIS_HOST: {{ include "white-ops.fullname" . }}-redis
+  REDIS_PORT: "6379"
+  MINIO_HOST: {{ include "white-ops.fullname" . }}-minio
+  MINIO_PORT: "9000"
+  MINIO_ENDPOINT: http://{{ include "white-ops.fullname" . }}-minio:9000
+  SERVER_HOST: {{ include "white-ops.fullname" . }}-server
+  SERVER_PORT: "8000"
+  MAIL_HOST: {{ include "white-ops.fullname" . }}-mail
+  MAIL_PORT: "8025"
+  LOG_LEVEL: "info"
