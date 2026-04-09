@@ -11,7 +11,7 @@ from passlib.context import CryptContext
 
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=True)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Token configuration
 TOKEN_AUDIENCE = "whiteops-api"
@@ -137,26 +137,23 @@ def generate_api_key() -> str:
 
 
 def hash_api_key(key: str) -> str:
-    """Hash an API key for storage using bcrypt (salted)."""
-    return pwd_context.hash(key)
+    """Hash an API key using HMAC-SHA256 with server secret for constant-time comparison."""
+    import hmac
+    return hmac.new(
+        settings.secret_key.encode(), key.encode(), hashlib.sha256
+    ).hexdigest()
 
 
 def verify_api_key(key: str, hashed: str) -> bool:
-    """Verify an API key against its stored bcrypt hash."""
-    try:
-        return pwd_context.verify(key, hashed)
-    except Exception:
-        return False
-
-
-# Legacy SHA-256 verification for migration period
-def _verify_api_key_sha256(key: str, hashed: str) -> bool:
-    """Verify against legacy SHA-256 hash during migration."""
-    return secrets.compare_digest(hashlib.sha256(key.encode()).hexdigest(), hashed)
+    """Verify an API key against its stored HMAC-SHA256 hash."""
+    return secrets.compare_digest(hash_api_key(key), hashed)
 
 
 def verify_api_key_compat(key: str, hashed: str) -> bool:
-    """Verify API key with bcrypt (preferred) or SHA-256 (legacy) fallback."""
-    if hashed.startswith("$2"):
-        return verify_api_key(key, hashed)
-    return _verify_api_key_sha256(key, hashed)
+    """Verify API key - supports current HMAC-SHA256 and legacy plain SHA-256."""
+    # Current: HMAC-SHA256 (64-char hex)
+    if verify_api_key(key, hashed):
+        return True
+    # Legacy: plain SHA-256
+    legacy = hashlib.sha256(key.encode()).hexdigest()
+    return secrets.compare_digest(legacy, hashed)

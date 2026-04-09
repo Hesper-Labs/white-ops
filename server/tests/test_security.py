@@ -117,9 +117,9 @@ class TestAPIKeys:
         hashed = hash_api_key(key)
         assert not verify_api_key("wrong-key", hashed)
 
-    def test_compat_verify_bcrypt(self):
+    def test_compat_verify_hmac(self):
         key = generate_api_key()
-        hashed = hash_api_key(key)  # bcrypt hash
+        hashed = hash_api_key(key)  # HMAC-SHA256 hash
         assert verify_api_key_compat(key, hashed)
 
     def test_compat_verify_legacy_sha256(self):
